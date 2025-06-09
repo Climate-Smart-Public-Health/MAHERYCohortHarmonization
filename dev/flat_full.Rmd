@@ -18,7 +18,7 @@ library(testthat)
 If it is the first time you use {fusen}, after 'description', you can directly run the last chunk of the present file with inflate() inside.
 --> 
 
-```{r development-load}
+```{r development-load, eval=FALSE}
 # Load already included functions if relevant
 pkgload::load_all(export_all = FALSE)
 ```
@@ -33,7 +33,7 @@ and `system.file()` to read it in your examples.
 - There already is a dataset in the "inst/" directory to be used in the examples below
 -->
 
-```{r development-dataset}
+```{r development-dataset, eval=FALSE}
 # Run all this chunk in the console directly
 # There already is a dataset in the "inst/" directory
 # Make the dataset file available to the current Rmd during development
@@ -63,11 +63,11 @@ After inflating the template
 -  This function code will automatically be added in a new file in the "R/" directory
 -->
 
-```{r development-function}
+```{r development-function, eval=FALSE}
 # Prepare the code of your function here
 ```
 
-```{r function}
+```{r function, eval=FALSE}
 #' My median
 #'
 #' @param x Vector of Numeric values
@@ -100,7 +100,7 @@ After inflating the template
 - This example will automatically be added in the vignette created from this Rmd template
 -->
 
-```{r examples}
+```{r examples, eval=FALSE}
 my_median(1:12)
 
 # Example with your dataset in "inst/"
@@ -123,7 +123,7 @@ After inflating the template
 -  This test code will automatically be added in the "tests/testthat/" directory
 -->
 
-```{r tests}
+```{r tests, eval=FALSE}
 test_that("my_median works properly and show error if needed", {
   expect_true(my_median(1:12) == 6.5)
   expect_error(my_median("text"))
@@ -147,7 +147,7 @@ Each of them will be inflated in a different file, provided that there is a leve
 
 ## Use sub-functions in the same chunk
 
-```{r function-my_other_median}
+```{r function-my_other_median, eval=FALSE}
 #' My Other median
 #'
 #' @param x Vector of Numeric values
@@ -173,11 +173,11 @@ sub_median <- function(x, na.rm = TRUE) {
 }
 ```
 
-```{r examples-my_other_median}
+```{r examples-my_other_median, eval=FALSE}
 my_other_median(1:12)
 ```
 
-```{r tests-my_other_median}
+```{r tests-my_other_median, eval=FALSE}
 test_that("my_median works properly and show error if needed", {
   expect_true(my_other_median(1:12) == 6.5)
   expect_error(my_other_median("text"))

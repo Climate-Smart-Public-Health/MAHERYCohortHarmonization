@@ -94,35 +94,75 @@ like so:
 # FILL THIS IN! HOW CAN PEOPLE INSTALL YOUR DEV PACKAGE?
 ```
 
-## Example
+## Pipeline
 
-This is a basic example which shows you how to solve a common problem:
+The pipeline is managed by `targets`, which is a powerful R package for
+reproducible data analysis. It allows you to define a series of steps
+(or targets) that will be executed in order, ensuring that your analysis
+is reproducible and efficient. The pipeline is deefined in the
+`_targets.R` file. The functions we create to build this pipeline are
+defined in the notebooks in the `dev/` directory, and exported to the
+`R` directory using `fusen`.
+
+You can run the pipeline using the following command:
 
 ``` r
-library(MAHERYCohortHarmonization)
-## basic example code
+library(targets)
+
+tar_make()
 ```
 
-What is special about using `README.Rmd` instead of just `README.md`?
-You can include R chunks like so:
+Here is the current state of the pipeline:
 
 ``` r
-summary(cars)
-#>      speed           dist       
-#>  Min.   : 4.0   Min.   :  2.00  
-#>  1st Qu.:12.0   1st Qu.: 26.00  
-#>  Median :15.0   Median : 36.00  
-#>  Mean   :15.4   Mean   : 42.98  
-#>  3rd Qu.:19.0   3rd Qu.: 56.00  
-#>  Max.   :25.0   Max.   :120.00
+library(targets)
+library(DiagrammeR)
+library(DiagrammeRsvg)
+library(rsvg)
+#> Linking to librsvg 2.42.7
+library(dplyr)
+#> 
+#> Attaching package: 'dplyr'
+#> The following objects are masked from 'package:stats':
+#> 
+#>     filter, lag
+#> The following objects are masked from 'package:base':
+#> 
+#>     intersect, setdiff, setequal, union
+network <- tar_network()
+#> -\|/-\renv 1.1.4 was loaded from project library, but this project is configured to use renv 1.1.3.
+#> - Use `renv::record("renv@1.1.4")` to record renv 1.1.4 in the lockfile.
+#> - Use `renv::restore(packages = "renv")` to install renv 1.1.3 into the project library.
+#> |/-\|/-\|/-\|/-\|/-\|- The project is out-of-sync -- use `renv::status()` for details.
+#> /-\|/-\|/-  checked: 1 | outdated: 0\  checked: 11 | outdated: 5
+#> |/ 
+
+# Optional: filter out internal targets like `.Random.seed`
+vertices <- network$vertices %>% filter(!grepl("^\\.", name))
+
+# Build node declarations
+node_lines <- sprintf('  "%s";', vertices$name)
+
+# Filter edges to match cleaned nodes
+edges <- network$edges %>%
+  filter(from %in% vertices$name, to %in% vertices$name)
+
+# Build edge connections
+edge_lines <- sprintf('  "%s" -> "%s";', edges$from, edges$to)
+
+# Assemble DOT graph string
+dot_code <- c("digraph targets_pipeline {", node_lines, edge_lines, "}")
+dot_string <- paste(dot_code, collapse = "\n")
+
+# Create grViz graph
+graph <- grViz(dot_string)
+
+svg_path <- "man/figures/pipeline_dag.svg"
+svg_string <- export_svg(graph)
+writeLines(svg_string, svg_path)
 ```
 
-You’ll still need to render `README.Rmd` regularly, to keep `README.md`
-up-to-date. `devtools::build_readme()` is handy for this.
-
-You can also embed plots, for example:
-
-<img src="man/figures/README-pressure-1.png" width="100%" />
-
-In that case, don’t forget to commit and push the resulting figure
-files, so they display on GitHub and CRAN.
+<figure>
+<img src="man/figures/pipeline_dag.svg" alt="Pipeline Graph" />
+<figcaption aria-hidden="true">Pipeline Graph</figcaption>
+</figure>

@@ -1,0 +1,7 @@
+pandoc: 3.6.4
+pkgdown: 2.1.1
+pkgdown_sha: ~
+articles:
+  get-started: get-started.html
+  tracking-input-data: tracking-input-data.html
+last_built: 2025-03-25T15:32Z

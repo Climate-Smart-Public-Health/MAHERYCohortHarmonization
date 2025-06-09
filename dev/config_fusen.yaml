@@ -20,8 +20,17 @@ flat_full.Rmd:
 flat_tracking_inputs.Rmd:
   path: dev/flat_tracking_inputs.Rmd
   state: active
-  R: R/authenticate_google_drive.R
-  tests: tests/testthat/test-authenticate_google_drive.R
+  R:
+  - R/authenticate_google_drive.R
+  - R/create_datapaths.R
+  - R/download_to_local.R
+  - R/has_drive_file_changed.R
+  - R/mahery_input_files.R
+  tests:
+  - tests/testthat/test-authenticate_google_drive.R
+  - tests/testthat/test-has_drive_file_changed.R
+  - tests/testthat/test-create_datapaths.R
+  - tests/testthat/test-download_to_local.R
   vignettes: vignettes/tracking-input-data.Rmd
   inflate:
     flat_file: dev/flat_tracking_inputs.Rmd

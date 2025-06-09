@@ -72,6 +72,8 @@ After inflating the template
 - This example will automatically be added in the vignette created from this Rmd template
 -->
 ```{r examples}
+#| eval: no
+
 my_median(1:12)
 
 # Example with your dataset in "inst/"
@@ -105,6 +107,8 @@ Each of them will be inflated in a different file, provided that there is a leve
 ## Use sub-functions in the same chunk
 
 ```{r examples-my_other_median}
+#| eval: no
+
 my_other_median(1:12)
 ```
 

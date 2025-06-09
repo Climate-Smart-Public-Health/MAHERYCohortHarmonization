@@ -77,16 +77,18 @@ drive_find()
 In a non-interactive session, make sure to set the environment variable with `.Renviron`.
 ```{r}
 #| echo: no
+#| results: hide
 #| message: no
 #| warning: no
 
 library(googledrive)
 path_to_auth <- Sys.getenv("GOOGLE_DRIVE_AUTH_JSON")
 drive_auth(path = path_to_auth)
-drive_find() # does not print anything in vignettes but will print interactively
+drive_find() # do not print anything in vignettes but will print interactively
 ```
 
 
+### authenticate_google_drive
 
 ```{r examples-authenticate_google_drive}
 authenticate_google_drive()
@@ -95,4 +97,79 @@ authenticate_google_drive()
 
 
 We can add this to the beginning of our `targets` pipeline.
+
+## Ensuring Files Have Not Changed
+
+Ensuring that files haven't changed is important for reproducibility, but is
+also arguably quite tricky with Google drive. Anyone with the link and access
+can change the file, and this can break the pipeline. We can't really check
+the hash of the file, but we can check the last modified date. This is not
+perfect, but it's better than nothing. We can also add checks in the pipeline
+via assertions and test_that functions such that the pipeline won't be broken
+if the file is changed.
+
+<div class="warning">
+  <strong>Warning:</strong> <italic>DO NOT</italic> use file ID identifiers in rendered HTML vignettes,
+  as they can be used to access the Google Drive if sharing is enabled. This is a security risk. Instead,
+  use the file name and `drive_find(pattern = [REGEX])` to reference files.
+</div>
+
+### has_drive_file_changed
+    
+  
+  
+```{r example-has_drive_file_changed}
+test_file <- "1X9pd4nOjl33zDFfTjw-_eFL7Qb9_g6VfVFDp1PPae94"
+has_drive_file_changed(test_file, lubridate::ymd_hms("2025-04-01 00:00:00", tz = "UTC"))
+```
+
+  
+
+## Local Data Paths
+Here's a utility for creating data paths in any local environment using `here` and
+`fs`:
+
+# create_datapaths
+    
+  
+  
+```{r example-create_datapaths}
+if(FALSE) {
+  create_datapaths()
+} 
+```
+
+  
+  
+
+## Northeast Data
+
+Now that we have access to the Google Drive, we can start tracking the input data. We'll start with the Northeast data.
+
+Time order of the data files:
+* Year 2018: openSRP_data_2018.xlsx
+* Year 2019: Dharma_followup_2020plus.xlsx
+* Beyond 2019:  Dharma_2019_2020.csv
+
+First, we simply track the state of these input files from googledrive. We'll simply
+use a list to store the file names and their IDs, and then pass that list to 
+the target pipeline.
+
+# download_to_local
+    
+  
+  
+```{r example-download_to_local}
+authenticate_google_drive()
+test_file <- "openSRP_dictionary.xlsx"
+fpath <- download_to_local(test_file, here::here())
+file.exists(fpath)
+file.remove(fpath)
+```
+
+  
+  
+
+With this in mind, we can likely dedicate a section to each of the files,
+using a function to track each one.
 

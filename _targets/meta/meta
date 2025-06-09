@@ -1,7 +1,23 @@
 name|type|data|command|depend|seed|path|time|size|bytes|format|repository|iteration|parent|children|seconds|warnings|error
+auth|stem|445854964aee0763|0161787e8a224ad1|65c2ad79a17e0cf8|1926614493||t20172.1205230382s|s48b|48|rds|local|vector|||0.893||
+secure_access_true|stem|445854964aee0763|0161787e8a224ad1|65c2ad79a17e0cf8|2063295041||t20173.7488740019s|s48b|48|rds|local|vector|||1.037||
+data_directory_ready|stem|445854964aee0763|8349b394c26d9c20|0e21e1f9d366c379|1560426136||t20173.7497442671s|s48b|48|rds|local|vector|||0.013||
+freeze_date|stem|c7c7080d559f4438|5498c8f5bc9c1d79|2c530c1562a7fbd1|1444904303||t20187.8621231966s|s80b|80|rds|local|vector|||0.883||
+data_files|stem|c2afa1b2a7b589f1|a709d62512b8f653|cd250da4a56e449a|22696647||t20187.862123765s|s269b|269|rds|local|vector|||0.001||
+data_files_changed|stem||7438bd3464e41942|0086379227ef4d7f|678754403||t20187.8621242935s||0|rds|local|vector|||1.119||ℹ In index 1.ℹ With name fname.Caused by error in mapℹ In index 1.Caused by error in .f Client error 404 Not FoundFile not found 2018_data. message File not found 2018_data. domain global reason notFound location fileId locationType parameter
+gdrive_files_have_NOT_changed|stem|445854964aee0763|9143becc5ca46d7b|ed200ae3e1ff22ee|-1744538489||t20187.8878695876s|s48b|48|rds|local|vector|||4.29||
+guard_pipeline_freeze|stem|445854964aee0763|385416449eb5ba26|028d196dbf3efcac|-319528748||t20187.8878701566s|s48b|48|rds|local|vector|||0||
+opensrp_dict|stem|6d0cd543afb0870d|e821a3461e31a942|ada577bfb5464931|1583738572||t20189.8066722536s|s2662b|2662|rds|local|vector|||0.057||
+opensrp|stem|6101539859a6fe69|ccee9877276d18d9|ada577bfb5464931|157834436||t20189.8066738422s|s40380b|40380|rds|local|vector|||0.079||
+dharma2019|stem|2b3bd18c7585ab64|bdfdb84c73c65e86|ada577bfb5464931|286367251||t20189.8071167773s|s2039412b|2039412|rds|local|vector|||4.954||
+dharma2020|stem|b486388c2d8aaf0d|285bdfe35640245c|ada577bfb5464931|1493587893||t20189.8071195439s|s30988b|30988|rds|local|vector|||0.15||
 authenticate_google_drive|function|8ea81be87ccf059b
 my_median|function|d311d35c99082065
+mahery_input_files|function|449187d1406b826a
 sub_median|function|b7edf9b2a71ee8bb
-.Random.seed|object|92b81a72efa7910f
+download_to_local|function|69d15bf9b93a48a7
+.Random.seed|object|fa997422b90baf5a
+create_datapaths|function|0efd8fbe85029549
+has_drive_file_changed|function|f96fc022c0ccc02c
 my_other_median|function|db108af6e06aa435
-auth|stem|445854964aee0763|0161787e8a224ad1|65c2ad79a17e0cf8|1926614493||t20172.1205230382s|s48b|48|rds|local|vector|||0.893||
+raw_files|stem|e9af9633189d06a4|7bba0b92ed77fb5c|6773560610c21d17|1129559970||t20189.8232358291s|s418b|418|rds|local|vector|||3.372||

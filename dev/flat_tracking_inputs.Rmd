@@ -1,7 +1,9 @@
 ---
 title: "Tracking Input Data"
 author: "Tinashe M. Tapera"
-output: rmarkdown::html_vignette
+output: 
+  rmarkdown::html_vignette:
+    css: style.css
 editor_options: 
   chunk_output_type: console
 # vignette: >
@@ -32,6 +34,8 @@ For this, we'll use the `googledrive` package from `tidyverse`.
 
 # necessary libraries
 library(googledrive)
+library(dplyr)
+library(stringr)
 ```
 
 We can start the process of authorization using the `drive_auth()` function. This requires
@@ -75,25 +79,27 @@ drive_find()
 
 In a non-interactive session, make sure to set the environment variable with `.Renviron`.
 
-```{r, echo=FALSE, message=FALSE, warning=FALSE}
+```{r, echo=FALSE, results='hide', message=FALSE, warning=FALSE}
 library(googledrive)
 path_to_auth <- Sys.getenv("GOOGLE_DRIVE_AUTH_JSON")
 drive_auth(path = path_to_auth)
-drive_find() # does not print anything in vignettes but will print interactively
+drive_find() # do not print anything in vignettes but will print interactively
 ```
 
+### authenticate_google_drive
+
 ```{r function-authenticate_google_drive}
-#' authenticate_google_drive Title
+#' authenticate_google_drive
 #'
 #' Authenticate with Google Drive using the appropriate credentials
 #' The pipeline will not run if this step is not successful.
 #' 
 #' @importFrom googledrive drive_auth
+#' 
 #' @return TRUE if the authentication was successful
+#' 
 #' @export
 #'
-#' @examples
-#' authenticate_google_drive()
 authenticate_google_drive <- function() {
   
   # Load the path to the authentication file
@@ -124,6 +130,295 @@ test_that("Google authentication works", {
 ```
 
 We can add this to the beginning of our `targets` pipeline.
+
+## Ensuring Files Have Not Changed
+
+Ensuring that files haven't changed is important for reproducibility, but is
+also arguably quite tricky with Google drive. Anyone with the link and access
+can change the file, and this can break the pipeline. We can't really check
+the hash of the file, but we can check the last modified date. This is not
+perfect, but it's better than nothing. We can also add checks in the pipeline
+via assertions and test_that functions such that the pipeline won't be broken
+if the file is changed.
+
+<div class="warning">
+  <strong>Warning:</strong> <italic>DO NOT</italic> use file ID identifiers in rendered HTML vignettes,
+  as they can be used to access the Google Drive if sharing is enabled. This is a security risk. Instead,
+  use the file name and `drive_find(pattern = [REGEX])` to reference files.
+</div>
+
+### has_drive_file_changed
+    
+```{r development-has_drive_file_changed}
+# You can prepare the code of the has_drive_file_changed() function here
+library(googledrive)
+library(lubridate)
+```
+  
+```{r function-has_drive_file_changed}
+#' has_drive_file_changed
+#' 
+#' Check from a file modification timestamp whether or not it has been changed
+#' since last run of the pipeline.
+#' 
+#' @param file_id The ID of the file to check
+#' @param last_known_run_time The last known time the pipeline was frozen for running
+#' 
+#' @return Boolean
+#' 
+#' @export
+#' @importFrom googledrive drive_get as_id
+#' @importFrom lubridate ymd_hms
+has_drive_file_changed <- function(file_id, last_known_run_time=ymd_hms("2025-04-01 00:00:00", tz = "UTC")) {
+  
+  if(!authenticate_google_drive()){
+    stop("Authentication failed. Please check the path to the authentication file.")
+  }
+  file <- drive_get(as_id(file_id))
+  current_time <- ymd_hms(file$drive_resource[[1]]$modifiedTime, tz = "UTC")
+  return(current_time > last_known_run_time)
+}
+```
+  
+```{r example-has_drive_file_changed}
+test_file <- "1X9pd4nOjl33zDFfTjw-_eFL7Qb9_g6VfVFDp1PPae94"
+has_drive_file_changed(test_file, lubridate::ymd_hms("2025-04-01 00:00:00", tz = "UTC"))
+```
+  
+```{r tests-has_drive_file_changed}
+test_that("has_drive_file_changed works", {
+  
+  # a test file on google drive provided by the googldrive package
+  test_file <- "1X9pd4nOjl33zDFfTjw-_eFL7Qb9_g6VfVFDp1PPae94"
+
+  # today, the file is stable so it should not have changed
+  unchanged_time <- ymd_hms("2025-04-01 00:00:00", tz = "UTC")
+  expect_false(has_drive_file_changed(test_file, unchanged_time))
+
+  # but if we go back in time to when the file was created, it should
+  # have changed since then
+  changed_time <- ymd_hms("2021-04-02 00:00:00", tz = "UTC")
+  expect_true(has_drive_file_changed(test_file, changed_time))
+})
+```
+
+## Local Data Paths
+Here's a utility for creating data paths in any local environment using `here` and
+`fs`:
+
+# create_datapaths
+    
+```{r development-create_datapaths}
+# You can prepare the code of the create_local_data_paths() function here
+```
+  
+```{r function-create_datapaths}
+#' Create Data Directory Structure for Reproducible Pipelines
+#'
+#' Creates a standard data folder structure at the project root:
+#' data/raw/, data/input/, data/intermediate/, data/output/
+#' Adds a .gitignore to exclude files but keep the folder structure.
+#'
+#' @importFrom here here
+#' @importFrom fs dir_create file_create path
+#' @export
+create_datapaths <- function() {
+  # Define main data directory and subdirectories
+  base_dir <- here::here("data")
+  subdirs <- c("raw", "input", "intermediate", "output")
+  full_paths <- fs::path(base_dir, subdirs)
+
+  if (all(fs::dir_exists(full_paths))) {
+    message("✅ Directories already exist.")
+    return(TRUE)
+  }
+
+  # Create folders
+  fs::dir_create(full_paths)
+
+  # Create .gitkeep files in each subdir to keep them in version control
+  fs::file_create(fs::path(full_paths, ".gitkeep"))
+
+  # Write .gitignore at data/ level
+  gitignore_path <- fs::path(base_dir, ".gitignore")
+  gitignore_content <- c(
+    "# Ignore all data files",
+    "*",
+    "# But keep these folders (and their .gitkeep files)",
+    "!*/",
+    "!raw/.gitkeep",
+    "!input/.gitkeep",
+    "!intermediate/.gitkeep",
+    "!output/.gitkeep"
+  )
+  writeLines(gitignore_content, gitignore_path)
+
+  # Check if all directories were created successfully
+  if (!all(fs::dir_exists(full_paths))) {
+    message("❌ Failed to create some directories.")
+    return(FALSE)
+  } else {
+    message("✅ Data environment initialized at: ", base_dir)
+    return(TRUE)
+  }
+
+}
+```
+  
+```{r example-create_datapaths}
+if(FALSE) {
+  create_datapaths()
+} 
+```
+  
+```{r tests-create_datapaths, eval=FALSE}
+test_that("create_datapaths works", { #TODO this test fails because of here() function
+
+  skip_if_not_installed("fs")
+  skip_if_not_installed("here")
+
+  # Save current working directory
+  old_wd <- getwd()
+
+  # Create a temporary project directory
+  temp_proj <- fs::path_temp("test_data_env")
+  fs::dir_create(temp_proj)
+  setwd(temp_proj)
+
+  # Simulate a project root for `here::here()`
+  fs::file_create(".here")  # Explicitly create a .here file to mark the project root
+
+  # Force here to use the temporary directory as the root
+  here::set_here(temp_proj)
+
+  # Call the function to create data paths
+  create_datapaths()
+
+  base <- fs::path("data")
+  expected_dirs <- fs::path(base, c("raw", "input", "intermediate", "output"))
+  expected_keep_files <- fs::path(expected_dirs, ".gitkeep")
+  gitignore_file <- fs::path(base, ".gitignore")
+
+  # Check that all folders were created
+  expect_true(all(fs::dir_exists(expected_dirs)))
+
+  # Check that .gitkeep files exist
+  expect_true(all(fs::file_exists(expected_keep_files)))
+
+  # Check .gitignore exists and has expected content
+  expect_true(fs::file_exists(gitignore_file))
+  gitignore_lines <- readLines(gitignore_file)
+  expect_true(any(grepl("!raw/.gitkeep", gitignore_lines)))
+  expect_true(any(grepl("^\\*$", gitignore_lines)))  # Make sure '*' line is there
+
+  # Cleanup
+  setwd(old_wd)
+  fs::dir_delete(temp_proj)
+})
+```
+  
+
+## Northeast Data
+
+Now that we have access to the Google Drive, we can start tracking the input data. We'll start with the Northeast data.
+
+Time order of the data files:
+* Year 2018: openSRP_data_2018.xlsx
+* Year 2019: Dharma_followup_2020plus.xlsx
+* Beyond 2019:  Dharma_2019_2020.csv
+
+First, we simply track the state of these input files from googledrive. We'll simply
+use a list to store the file names and their IDs, and then pass that list to 
+the target pipeline.
+
+```{r function-mahery_input_files}
+#' Track the Input Files for the Mahery Cohort
+#' 
+#' Description
+#' 
+#' @return tibble with the file names and their regex patterns
+#' @importFrom lubridate mdy
+#' @importFrom tibble tribble
+#' 
+#' @export
+mahery_input_files <- function(freeze_date = mdy("01-04-2025")){
+    tribble(
+      ~fname,               ~regex,                 ~freeze_date,
+      "2018_data",          "openSRP_data_2018*",   freeze_date,
+      "2018_dictionary",    "openSRP_dictionary*",  freeze_date,
+      "2019_data",          "Dharma_2019*",         freeze_date,
+      "2020_data_onwards",  "Dharma_followup*",     freeze_date
+  )
+}
+```
+
+# download_to_local
+    
+```{r development-download_to_local}
+# You can prepare the code of the download_to_local() function here
+```
+  
+```{r function-download_to_local}
+#' download_to_local
+#' 
+#' Download the google drive file to local storage
+#' 
+#' @importFrom googledrive drive_find drive_download
+#' @importFrom dplyr pull
+#' 
+#' @return The path to the downloaded file
+#' 
+#' @export
+download_to_local <- function(f_regex, download_dir) {
+  
+  # Find the file on Google Drive
+  file_info <- drive_find(f_regex, n_max = 1)
+  
+  if (nrow(file_info) == 0) {
+    stop("No file found matching the regex: ", f_regex)
+  }
+  
+  # Extract the file name from Google Drive metadata
+  file_name <- file_info$name
+  
+  # Construct the full path for the local file
+  local_path <- file.path(download_dir, file_name)
+  
+  if(file.exists(local_path)) {
+    message("File already exists locally: ", local_path)
+    return(local_path)
+  }
+
+  # Download the file to the specified path
+  drive_download(as_id(file_info$id), path = local_path, overwrite = FALSE)
+  
+  if (!file.exists(local_path)) {
+    stop("File not downloaded successfully.")
+  } else {
+    message("File downloaded successfully to: ", local_path)
+  }
+  
+  return(local_path)
+}
+```
+  
+```{r example-download_to_local}
+authenticate_google_drive()
+test_file <- "openSRP_dictionary.xlsx"
+fpath <- download_to_local(test_file, here::here())
+file.exists(fpath)
+file.remove(fpath)
+```
+  
+```{r tests-download_to_local}
+test_that("download_to_local works", {
+  expect_true(inherits(download_to_local, "function"))
+})
+```
+  
+
+With this in mind, we can likely dedicate a section to each of the files,
+using a function to track each one.
 
 ```{r development-inflate, eval=FALSE}
 # Run but keep eval=FALSE to avoid infinite loop

@@ -1,0 +1,165 @@
+---
+title: "flat_preprocess_2018.Rmd empty"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r development, include=FALSE}
+library(testthat)
+```
+
+```{r development-load}
+# Load already included functions if relevant
+pkgload::load_all(export_all = FALSE)
+```
+
+# preprocess_2018
+
+In this notebook, we're exploring and preprocessing the 2018 data from OpenSRP.
+The function will ultimately preprocess the data so that it can be harmonized
+effectively with the other datasets.
+
+## EDA
+
+Let's start with some simple EDA.
+
+```{r development-preprocess_2018}
+# Prepare the code of your function here
+library(here)
+library(dplyr)
+library(stringr)
+library(janitor)
+library(targets)
+library(skimr)
+library(googledrive)
+
+if(!authenticate_google_drive()) {
+  stop("Google drive not authenticated!")
+}
+```
+
+```{r development-fetch_data}
+tar_load(opensrp)
+tar_load(opensrp_dict)
+```
+
+The first thing to do is to run the column names through `clean_names`:
+
+```{r}
+opensrp_ <- clean_names(opensrp)
+```
+
+Now, we go through each column and check the types and summary of the data:
+
+```{r}
+summary(opensrp_)
+```
+
+```{r}
+skim(opensrp_)
+```
+
+```{r function-preprocess_2018}
+#' preprocess_2018 Title
+#'
+#' @return 1
+#' @export
+#'
+#' @examples
+preprocess_2018 <- function() {
+  1
+}
+```
+
+```{r examples-preprocess_2018}
+preprocess_2018()
+```
+
+```{r tests-preprocess_2018}
+test_that("preprocess_2018 works", {
+  expect_true(inherits(preprocess_2018, "function"))
+})
+```
+
+### 2018
+
+To start, we read in the 2018 data:
+
+```{r}
+library(dplyr)
+```
+
+```{r}
+drive_find(pattern = "openSRP_data_2018*") %>%
+  select(-id)
+```
+
+Since it's an xlsx, we'll need to use the appropriate library:
+
+```{r}
+library(readxl)
+library(here)
+```
+
+```{r}
+drive_find(pattern = "openSRP_data_2018*") %>%
+  drive_download(path = here("data", "raw", "openSRP_data_2018.xlsx"), overwrite=TRUE) -> dat
+
+openSRP <- read_excel(dat$local_path)
+
+#skimr is a great way to look at the data without
+#having to print the whole thing and reveal PHI
+skimr::skim(openSRP)
+```
+
+There are loads of columns:
+
+```{r}
+names(openSRP)
+```
+
+I think using `janitor` across this project will help with aligning column
+types and names.
+
+```{r}
+library(janitor)
+clean_names(openSRP) %>%
+  skimr::skim()
+```
+
+We also have a data dictionary available:
+
+```{r}
+drive_find(pattern = "openSRP_dictionary*") %>%
+  drive_download(path = here("data", "raw", "openSRP_dictionary.xlsx"), overwrite=TRUE) -> dat
+
+openSRP_dict <- read_excel(dat$local_path)
+
+head(openSRP_dict)
+```
+
+#### Column by Column
+
+Let's investigate all of the columns in the dataset.
+
+
+
+Let's start with addressing column types:
+
+```{r}
+openSRP_ <- clean_names(openSRP)
+```
+
+```{r}
+numerics <- c("", "")
+factors <- c("")
+strings <- c("")
+```
+
+```{r development-inflate, eval=FALSE}
+# Run but keep eval=FALSE to avoid infinite loop
+# Execute in the console directly
+fusen::inflate(flat_file = "dev/flat_preprocess_2018.Rmd", vignette_name = "Go further")
+```
+

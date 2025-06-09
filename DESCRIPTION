@@ -9,16 +9,22 @@ Description: This package establishes a pipeline that harmonizes the
     that defines the MAHERY Cohort for future studies.
 License: MIT + file LICENSE
 Imports: 
+    dplyr,
+    fs,
     googledrive,
+    here,
+    lubridate,
     magrittr,
-    stats
+    stats,
+    tibble
 Suggests: 
     knitr,
     rmarkdown,
-    testthat
+    testthat (>= 3.0.0)
 VignetteBuilder: 
     knitr
 Config/fusen/version: 0.7.1
+Config/testthat/edition: 3
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
