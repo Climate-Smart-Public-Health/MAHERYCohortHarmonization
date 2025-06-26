@@ -1,0 +1,54 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/rocker-org/devcontainer-templates/tree/main/src/r-ver
+{
+	"name": "R (rocker/r-ver base)",
+	// Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
+	"image": "ghcr.io/rocker-org/devcontainer/r-ver:4.4",
+	"features": {
+		"ghcr.io/devcontainers/features/common-utils:2": {},
+		"ghcr.io/devcontainers/features/git:1": {},
+		"ghcr.io/devcontainers/features/github-cli:1": {},
+		"ghcr.io/devcontainers/features/python:1": {},
+		"ghcr.io/rocker-org/devcontainer-features/miniforge:2": {},
+		"ghcr.io/rocker-org/devcontainer-features/quarto-cli:1": {},
+		"ghcr.io/rocker-org/devcontainer-features/apt-packages:1": {
+			"packages": "libnode-dev libglpk40 librsvg2-dev libglpk-dev"
+		},
+		"ghcr.io/rocker-org/devcontainer-features/r-packages:1": {
+			"packages": "languageserver,github::rstudio/renv@v1.1.4,github::nx10/httpgd,jsonlite,rlang,here",
+			"installSystemRequirements": true
+		},
+		"ghcr.io/rocker-org/devcontainer-features/renv-cache:0": {}
+	},
+	
+	// Use 'postCreateCommand' to run commands after the container is created.
+	"init": true,
+	//"postCreateCommand": "alias r=\"radian\"; fi' >> ~/.bashrc",
+
+	// "remoteEnv": {
+	// 	"RENV_PATHS_CACHE": "/renv/cache"
+	// },
+	// Use 'forwardPorts' to make a list of ports inside the container available locally.
+	// "forwardPorts": [],
+
+	// Configure tool-specific properties.
+	// "customizations": {
+	// 	"vscode": {
+	// 	"extensions": [
+	// 		"REditorSupport.r",
+	// 		"REditorSupport.r-syntax",
+	// 		"RDebugger.r-debugger",
+	// 		"quarto.quarto",
+	// 		"TianyiShi.rmarkdown"
+	// 	]
+	// 	}
+	// },
+	"mounts": [
+  		"source=/Users/tit420/projects/MAHERYCohortHarmonization/data,target=/workspaces/MAHERYCohortHarmonization/data,type=volume",
+		"source=/Users/tit420/projects/MAHERYCohortHarmonization/_targets,target=/workspaces/MAHERYCohortHarmonization/_targets,type=volume"//,
+		//"source=${localEnv:HOME}${localEnv:USERPROFILE}/.cache/R/renv/cache/,target=/renv/cache,type=bind"
+	]
+
+	// Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
+	// "remoteUser": "root"
+}

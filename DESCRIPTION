@@ -1,6 +1,6 @@
 Package: MAHERYCohortHarmonization
 Title: MAHERY Cohort Harmonization
-Version: 0.0.0.9000
+Version: 1.1.0
 Authors@R: 
     person("Tinashe", "Tapera", , "ttapera@hsph.harvard.edu", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0000-0000-0000"))
@@ -8,23 +8,44 @@ Description: This package establishes a pipeline that harmonizes the
     MAHERY cohort data across disparate sources and produces a dataset
     that defines the MAHERY Cohort for future studies.
 License: MIT + file LICENSE
+Depends: 
+    R (>= 3.5)
 Imports: 
+    digest,
     dplyr,
+    forcats,
     fs,
+    glue,
     googledrive,
     here,
+    janitor,
     lubridate,
     magrittr,
+    mime,
+    pins,
+    purrr,
+    rlang,
     stats,
+    stringr,
     tibble
 Suggests: 
+    devtools,
+    DT,
+    ggalluvial,
+    ggplot2,
     knitr,
+    pkgload,
     rmarkdown,
-    testthat (>= 3.0.0)
+    skimr,
+    targets,
+    testthat (>= 3.0.0),
+    tidyr,
+    usethis
 VignetteBuilder: 
     knitr
 Config/fusen/version: 0.7.1
 Config/testthat/edition: 3
 Encoding: UTF-8
+LazyData: true
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2

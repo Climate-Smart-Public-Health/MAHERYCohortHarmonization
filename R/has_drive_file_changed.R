@@ -16,12 +16,12 @@
 #' @examples
 #' test_file <- "1X9pd4nOjl33zDFfTjw-_eFL7Qb9_g6VfVFDp1PPae94"
 #' has_drive_file_changed(test_file, lubridate::ymd_hms("2025-04-01 00:00:00", tz = "UTC"))
-has_drive_file_changed <- function(file_id, last_known_run_time=ymd_hms("2025-04-01 00:00:00", tz = "UTC")) {
+has_drive_file_changed <- function(drive_resource, last_known_run_time=ymd_hms("2025-04-01 00:00:00", tz = "UTC")) {
   
   if(!authenticate_google_drive()){
     stop("Authentication failed. Please check the path to the authentication file.")
   }
-  file <- drive_get(as_id(file_id))
-  current_time <- ymd_hms(file$drive_resource[[1]]$modifiedTime, tz = "UTC")
+  
+  current_time <- ymd_hms(drive_resource$modifiedTime, tz = "UTC")
   return(current_time > last_known_run_time)
 }

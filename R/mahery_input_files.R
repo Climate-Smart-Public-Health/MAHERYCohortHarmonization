@@ -14,7 +14,7 @@ mahery_input_files <- function(freeze_date = mdy("01-04-2025")){
       ~fname,               ~regex,                 ~freeze_date,
       "2018_data",          "openSRP_data_2018*",   freeze_date,
       "2018_dictionary",    "openSRP_dictionary*",  freeze_date,
-      "2019_data",          "Dharma_2019*",         freeze_date,
-      "2020_data_onwards",  "Dharma_followup*",     freeze_date
+      "2019_beyond",        "Dharma_2019*",         freeze_date,
+      "2019_data",          "Dharma_followup*",     freeze_date
   )
 }

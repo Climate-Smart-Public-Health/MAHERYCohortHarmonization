@@ -1,0 +1,607 @@
+---
+title: "flat_preprocess_2018_health.Rmd empty"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r development, include=FALSE}
+library(testthat)
+```
+
+```{r setup}  
+library(here)
+library(targets)
+tar_load(opensrp, store = here::here("_targets"))
+tar_load(opensrp_dict, store = here::here("_targets"))
+tar_load(cohort_2018_deid, store = here::here("_targets"))
+
+# Load already included functions if relevant
+pkgload::load_all(export_all = FALSE)
+
+library(janitor)
+library(dplyr)
+library(tidyr)
+library(lubridate)
+library(skimr)
+library(forcats)
+library(stringr)
+```
+
+In this notebook we're tackling the health data from the cohort 2018 opensrp file. We decided to
+leave this to a separate processing step because the health data is a bit more complex than the household registration and demographic data.
+
+Let's begin:
+
+## Reading in the data
+
+The data is read in from the targets pipeline, and is contained in the `opensrp` object.
+
+```{r}
+open_census <- opensrp$`Open census`
+
+head(open_census)
+```
+
+In this _specific case_, the raw data in the open census file is the same number of rows as the
+processed targets output, so I'm going to join the raw data to the health columns.
+
+```{r}
+open_census %>%
+  clean_names() %>%
+  # remove this individual as they are specifically excluded from the cohort as a duplicate
+  filter(!str_detect(member, "36841201")) %>%
+  select(prior_health_care:deathyear) %>%
+  bind_cols(select(cohort_2018_deid, uuid_clean = uuid, sex_clean = sex, age_group_clean = age_group), .) -> health_data
+```
+
+Now let's take a look at the data:
+```{r}
+skimr::skim(health_data)
+```
+
+## Health Care Access & Diagnoses
+
+The first thing to determine is whether `prior_health_care` refers to,
+"does this person have a history of a health care condition," or something else.
+
+```{r}
+health_data %>%
+  select(prior_health_care, prior_diagnosis) %>%
+  table()
+```
+
+From this it would appear that prior healthcare is a yes/no question
+that tells us if they have any history of health care conditions.
+
+```{r}
+health_data %>%
+  mutate(prior_health_condition_clean = case_when(
+    prior_health_care == "Yes" ~ "Yes",
+    !is.na(prior_diagnosis) ~ "Yes",
+    TRUE ~ "No"
+  )) -> health_data_
+```
+
+Now let's look at the `prior_diagnosis` column:
+
+```{r}
+health_data_ %>%
+  select(prior_diagnosis) %>%
+  table()
+```
+
+```{r}
+health_data_ %>%
+  select(other_prior_diagnosis) %>%
+  table()
+```
+
+In the secondary column, we see many values that are translated. We'll translate
+these manually and then cast them width wise to create a wide format table.
+
+First, we mutate the `prior_diagnosis` column to make sure a diagnosis is one word, or clearly separated by a comma:
+
+```{r}
+health_data_ %>%
+  mutate(
+    prior_diagnosis_ =
+      prior_diagnosis %>%
+        str_to_lower() %>%
+        str_replace("infected wound prior diagnosis other", "infected_wound") %>%
+        str_replace("malaria cancer", "malaria,cancer") %>%
+        str_replace("malaria prior diagnosis other", "malaria") %>%
+        str_replace("no pregnancy prior diagnosis other", "no_pregnancy") %>%
+        str_replace("no pregnancy", "no_pregnancy") %>%
+        str_replace("prior diagnosis other", "other") %>%
+        str_replace("hypertension idr", "hypertension") %>%
+        str_replace("no diagnosis", NA_character_) %>%
+        str_replace("idr", NA_character_)
+  ) %>%
+  select(prior_diagnosis_) %>%
+  table()
+```
+
+Then, we concatenate the `prior_diagnosis` and `other_prior_diagnosis` columns to create a single diagnosis column separated by commas:
+
+```{r}
+health_data_ %>%
+  mutate(
+    prior_diagnosis_ =
+      prior_diagnosis %>%
+        str_to_lower() %>%
+        str_replace("infected wound prior diagnosis other", "infected_wound") %>%
+        str_replace("malaria cancer", "malaria,cancer") %>%
+        str_replace("malaria prior diagnosis other", "malaria") %>%
+        str_replace("no pregnancy prior diagnosis other", "no_pregnancy") %>%
+        str_replace("no pregnancy", "no_pregnancy") %>%
+        str_replace("prior diagnosis other", "other") %>%
+        str_replace("hypertension idr", "hypertension") %>%
+        str_replace("no diagnosis", NA_character_) %>%
+        str_replace("idr", NA_character_)
+  ) %>%
+  mutate(
+    other_prior_diagnosis =
+      other_prior_diagnosis %>%
+        str_to_lower() %>%
+        str_replace("infected wound prior diagnosis other", "infected_wound") %>%
+        str_replace("malaria cancer", "malaria,cancer") %>%
+        str_replace("malaria prior diagnosis other", "malaria") %>%
+        str_replace("no pregnancy prior diagnosis other", "no_pregnancy") %>%
+        str_replace("no pregnancy", "no_pregnancy") %>%
+        str_replace("prior diagnosis other", "other") %>%
+        str_replace("hypertension idr", "hypertension") %>%
+        str_replace("no diagnosis", NA_character_) %>%
+        str_replace("idr", NA_character_)
+  ) %>%
+  unite(diagnoses_all, prior_diagnosis_, other_prior_diagnosis, sep = ",", remove = FALSE, na.rm = TRUE) %>%
+  mutate(
+    diagnoses_all =
+      str_squish(diagnoses_all) %>%
+        str_replace(", ", ",") %>%
+        str_replace(" ", "_") %>%
+        # if it just starts with "other," it means it has only "other diagnosis"
+        # and can be safely removed
+        str_replace("^other,", "") %>%
+        # which means the ones that are 999 are true "other" diagnoses
+        # with no specification in english
+        str_replace("999", "other_unspecified")
+  ) %>%
+  mutate(diagnoses_all = na_if(diagnoses_all, "")) %>%
+  select(diagnoses_all) %>%
+  table()
+```
+
+Now we have a single column with all diagnoses separated by a comma. We can
+use this to create a wide format table with each diagnosis as a column.
+
+These values can then be translated and categorised into ICD10 categories, which might be useful
+for cross-cultural comparisons and publications.
+    
+```{r malagasy_diagnosis_lookup_table}
+malagasy_diagnosis_lookup_table <- tibble::tribble(
+  ~raw, ~diagnosis_english, ~icd10_code, ~icd10_description,
+  "aretim_bavony", "stomach_ache", "R10–R19", "Symptoms and signs involving the digestive system and abdomen",
+  "adetin_kibo", "diarrhea", "R10–R19", "Symptoms and signs involving the digestive system and abdomen",
+  "farasisa", "heel_fissures", "L80–L99", "Other disorders of the skin and subcutaneous tissue",
+  "hernie", "hernia_prolapse", "K40–K46", "Hernia",
+  "voatombo_komby", "injury_by_animal_zebu", "W50–W64", "Exposure to animate mechanical forces",
+  "zonisy", "jaundice", "R10–R19", "Symptoms and signs involving the digestive system and abdomen",
+  "aretintsofina", "ear_nose_throat", "H60–H95", "Diseases of the ear and mastoid process",
+  "hoditra_fotsy", "genetic_albinism", "E70–E90", "Metabolic disorders",
+  "solopiso", "syphilis_sti", "A50–A64", "Infections with a predominantly sexual mode of transmission",
+  "mentally_handicapped", "developmental_cognitive", "F70–F79", "Intellectual disabilities",
+  "bongabe", "big_testicles", "N40–N51", "Diseases of male genital organs",
+  "mangoraka", "shivering_trembling", "R20–R29", "Symptoms and signs involving the nervous and musculoskeletal systems",
+  "tadigny", "ear_ache", "H60–H95", "Diseases of the ear and mastoid process",
+  "matetika_tontona", "epistaxis_nosebleed", "R00–R09", "Symptoms and signs involving the circulatory and respiratory systems",
+  "tontona", "epistaxis_nosebleed", "R00–R09", "Symptoms and signs involving the circulatory and respiratory systems",
+  "sohiky", "asthma", "J40–J47", "Chronic lower respiratory diseases",
+  "soiky", "asthma", "J40–J47", "Chronic lower respiratory diseases",
+  "torantorana", "dizziness_syncope", "R40–R46", "Symptoms and signs involving cognition, perception, emotional state and behavior",
+  "hypertension", "hypertension", "I10–I15", "Hypertensive diseases",
+  "malaria", "malaria", "B50–B64", "Protozoal diseases",
+  "tuberculosis", "tuberculosis", "A15–A19", "Tuberculosis",
+  "infected_wound", "skin_soft_tissue_infection", "L00–L08", "Infections of the skin and subcutaneous tissue",
+  "no_pregnancy", "pregnancy_related", "O00–O99", "Pregnancy, childbirth and the puerperium",
+  "cancer", "neoplasm_unspecified", "C00–D48", "Neoplasms",
+  "other", "other_unknown", "R00–R99", "Symptoms, signs and abnormal clinical and laboratory findings, not elsewhere classified"
+)
+# Save to package
+usethis::use_data(malagasy_diagnosis_lookup_table, overwrite = TRUE)
+```
+
+You can examine this lookup table in the vignette [`Pipeline Outputs`](OutputTables.html).
+
+```{r function-malagasy_diagnosis_lookup_table}
+#' Malagasy Diagnosis Lookup Table
+#'
+#' A lookup table mapping raw diagnosis entries (from Malagasy or English inputs)
+#' to standardized English diagnosis labels and ICD-10 chapter-level codes.
+#'
+#' Used in conjunction with `create_health_diagnoses()` to clean and harmonize
+#' multi-source survey data (e.g., `prior_diagnosis`, `other_prior_diagnosis`, or `diagnoses_all`).
+#'
+#' @format A tibble with 3 columns:
+#' \describe{
+#'   \item{raw}{Raw input string from survey data}
+#'   \item{diagnosis_english}{Cleaned harmonized English label}
+#'   \item{icd10_code}{ICD-10 chapter or block code (e.g. "K00–K95")}
+#' }
+#' @source Manually curated from OpenSRP 2018 health survey entries in the \link[=preprocessing-2018-health-status]{Health Preprocessing} vignette.
+"malagasy_diagnosis_lookup_table"
+```
+  
+With that, we can implement it in the function:
+
+```{r development-create_health_diagnoses}
+# You can prepare the code of the create_health_diagnoses() function here
+```
+  
+```{r function-create_health_diagnoses}
+#' Create Harmonized Health Diagnosis Variables
+#'
+#' This function takes a dataframe with a column of raw health diagnoses (`prior_diagnosis`)
+#' in Malagasy or local terms, and returns a modified dataframe with three new variables:
+#' - `diagnosis_english`: a harmonized, readable label in English
+#' - `diagnosis_icd10_category`: a corresponding broad ICD-10 category name
+#' - `diagnosis_icd10_code`: the ICD-10 code range (e.g., "K00–K95")
+#'
+#' The mappings are based on field-specific translations and align with global health reporting
+#' frameworks such as DHIS2 and ICD-10 Chapter-level groupings.
+#'
+#' @param df A dataframe containing a column `prior_diagnosis` with free-text or categorical health terms.
+#'
+#' @return A dataframe with additional columns: `diagnosis_english`, `diagnosis_icd10_category`, and `diagnosis_icd10_code`.
+#'
+#'
+#' @export
+create_health_diagnoses <- function(df, diagnosis_lookup = malagasy_diagnosis_lookup_table) {
+  df %>%
+    mutate(
+      prior_diagnosis_ =
+        prior_diagnosis %>%
+          str_to_lower() %>%
+          str_replace("infected wound prior diagnosis other", "infected_wound") %>%
+          str_replace("malaria cancer", "malaria,cancer") %>%
+          str_replace("malaria prior diagnosis other", "malaria") %>%
+          str_replace("no pregnancy prior diagnosis other", "no_pregnancy") %>%
+          str_replace("no pregnancy", "no_pregnancy") %>%
+          str_replace("prior diagnosis other", "other") %>%
+          str_replace("hypertension idr", "hypertension") %>%
+          str_replace("no diagnosis", NA_character_) %>%
+          str_replace("idr", NA_character_)
+    ) %>%
+    mutate(
+      other_prior_diagnosis =
+        other_prior_diagnosis %>%
+          str_to_lower() %>%
+          str_replace("infected wound prior diagnosis other", "infected_wound") %>%
+          str_replace("malaria cancer", "malaria,cancer") %>%
+          str_replace("malaria prior diagnosis other", "malaria") %>%
+          str_replace("no pregnancy prior diagnosis other", "no_pregnancy") %>%
+          str_replace("no pregnancy", "no_pregnancy") %>%
+          str_replace("prior diagnosis other", "other") %>%
+          str_replace("hypertension idr", "hypertension") %>%
+          str_replace("no diagnosis", NA_character_) %>%
+          str_replace("idr", NA_character_)
+    ) %>%
+    unite(diagnoses_all, prior_diagnosis_, other_prior_diagnosis, sep = ",", remove = FALSE, na.rm = TRUE) %>%
+    mutate(
+      diagnoses_all =
+        str_squish(diagnoses_all) %>%
+          str_replace(", ", ",") %>%
+          str_replace(" ", "_") %>%
+          # if it just starts with "other," it means it has only "other diagnosis"
+          # and can be safely removed
+          str_replace("^other,", "") %>%
+          # which means the ones that are 999 are true "other" diagnoses
+          # with no specification in english
+          str_replace("999", "other_unspecified")
+    ) %>%
+    mutate(diagnoses_all = na_if(diagnoses_all, "")) %>%
+    # step 1: Unnest and match diagnoses
+    mutate(id = row_number()) %>%
+    separate_rows(diagnoses_all, sep = ",") %>%
+    mutate(diagnoses_all = str_trim(diagnoses_all)) %>%
+    left_join(diagnosis_lookup, by = c("diagnoses_all" = "raw")) %>%
+    filter(!is.na(diagnosis_english)) -> long_df
+
+  # Step 2: Create wide one-hot matrix
+  wide_matrix <- long_df %>%
+    mutate(present = TRUE) %>%
+    distinct(id, diagnosis_english, present) %>%
+    mutate(diagnosis_english = str_c("diag_", diagnosis_english, "_clean")) %>%
+    pivot_wider(names_from = diagnosis_english, values_from = present, values_fill = FALSE)
+
+  # Step 3: Join back to original data
+  output <- df %>%
+    mutate(id = row_number()) %>%
+    left_join(
+      long_df %>%
+        group_by(id) %>%
+        summarise(
+          diagnosis_english_clean = paste(unique(diagnosis_english), collapse = ", "),
+          diagnosis_icd10_code_clean = paste(unique(icd10_code), collapse = ", ")
+        ),
+      by = "id"
+    ) %>%
+    left_join(wide_matrix, by = "id") %>%
+    select(-id)
+
+  return(output)
+}
+```
+  
+```{r example-create_health_diagnoses}
+health_data_ %>%
+  create_health_diagnoses() -> health_data_
+
+health_data_ %>%
+  summary()
+```
+  
+```{r tests-create_health_diagnoses}
+test_that("create_health_diagnoses works", {
+  expect_true(inherits(create_health_diagnoses, "function"))
+})
+```
+
+## Vaccinations
+
+We're going to categorize the vaccinations next:
+
+```{r}
+health_data_ %>% select(vaccine_card, vaccination_history) %>% table()
+```
+
+It looks like for the most part, when people have a vaccination card they have a history and can remember
+which vaccinations they have had. I'm assuming Idk refers to folks who do not know _where_ their vaccination card
+is, because these people can still confidently answer that they have had a specific vaccine.
+
+For the folks who say No, it must mean that they do not have a vaccination card. However, there are some cases 
+where people have a vaccination card but can say what vaccinations they have. Further, some can claim to have other
+vaccinations besides those listed in the survey. 
+
+```{r}
+health_data_ %>% select(vaccine_card, vaccine_other) %>% table()
+```
+
+We can ignore this column as it is effectively the same as the vaccine history column. 
+    
+```{r development-clean_2018_vaccinations}
+# You can prepare the code of the clean_2018_vaccinations() function here
+```
+  
+```{r function-clean_2018_vaccinations}
+#' Title
+#' 
+#' Description
+#' 
+#' @return
+#' 
+#' @export
+clean_2018_vaccinations <- function(df){
+
+  df %>%
+    mutate(
+      vaccine_card_clean = case_when(
+        vaccine_card == "Yes" ~ "Yes",
+        vaccine_card == "No" ~ "No",
+        vaccine_card == "Idk" ~ "Unknown_or_misplaced",
+        TRUE ~ NA_character_
+      ),
+      vaccination_history = 
+        str_to_lower(vaccination_history) %>%
+        str_replace("vacc idr", "other") %>%
+        str_replace("vacc other", "other"),
+      id = row_number()
+    ) %>%
+    separate_longer_delim(
+      vaccination_history,
+      delim = " "
+    ) %>%
+    mutate(vaccination_history = str_c("vacc_", vaccination_history, "_clean")) %>%
+    mutate(flag = TRUE) %>%
+    distinct(id, vaccination_history, .keep_all = TRUE) %>%
+    filter(!is.na(vaccination_history)) %>%
+    pivot_wider(
+      names_from = vaccination_history,
+      values_from = flag,
+      values_fill = FALSE
+    ) %>%
+    select(-id)
+
+}
+```
+  
+```{r example-clean_2018_vaccinations}
+health_data_ %>%
+  clean_2018_vaccinations() -> health_data_
+  
+health_data_ %>%
+  select(contains("vacc_")) %>%
+  skimr::skim()
+```
+  
+```{r tests-clean_2018_vaccinations}
+test_that("clean_2018_vaccinations works", {
+  expect_true(inherits(clean_2018_vaccinations, "function")) 
+})
+```
+  
+## Pregnancy
+
+Next, pregnancy:
+
+```{r}
+health_data_ %>%
+  select(contains("preg")) %>%
+  table()
+```
+
+This will be fairly simple and we will just create a column that indicates whether the person
+is currently pregnant or not, and how many pregnancies they've had in the past.
+
+```{r}
+health_data_ %>%
+  select(number_deliveries, number_live_births) %>%
+  table()
+```
+
+```{r}
+health_data_ %>%
+  select(birthweight, birthweight_gram) %>%
+  mutate(across(everything(), as.numeric)) %>%
+  summary()
+```
+
+There's not much to go off of here, but I'm assuming `birthweight_gram` is the weight of the most recent child.
+    
+```{r development-clean_2018_pregnancy}
+# You can prepare the code of the clean_2018_pregnancy() function here
+```
+  
+```{r function-clean_2018_pregnancy}
+#' Title
+#' 
+#' Description
+#' 
+#' @return
+#' 
+#' @export
+clean_2018_pregnancy <- function(df){
+
+  df %>%
+    mutate(
+      pregnancy_status_clean = case_when(
+        pregnant == "Yes" ~ "Currently_pregnant",
+        pregnant == "No" ~ "Not_pregnant",
+        TRUE ~ NA_character_
+      ) %>% as.factor(),
+      number_deliveries_clean = as.numeric(number_deliveries),
+      number_live_births_clean = as.numeric(number_live_births),
+      most_recent_birthweight_gram_clean = as.numeric(birthweight_gram)
+    )
+}
+```
+  
+```{r example-clean_2018_pregnancy}
+health_data_ %>% 
+  clean_2018_pregnancy() -> health_data_
+
+health_data_ %>%
+  select(matches("pregnancy|birth|deliveries")) %>%
+  select(contains("clean")) %>%
+  skimr::skim()
+```
+  
+```{r tests-clean_2018_pregnancy}
+test_that("clean_2018_pregnancy works", {
+  expect_true(inherits(clean_2018_pregnancy, "function")) 
+})
+```
+
+## Other
+
+There is no data in the columns dealing with deceased survey participants but we'll keep them
+in for future comparison.
+
+Looking at the surgical history:
+
+```{r}
+health_data %>%
+  select(contains("surgeries")) %>%
+  table()
+```
+
+These will likely need a deliberate translation.
+
+Lastly, deformities will also get a translation:
+
+```{r}
+health_data %>%
+  select(contains("deformit")) %>%
+  table()
+```
+
+# preprocess_2018_health
+
+The final function will combine all of these steps into a single function that can be used to preprocess the 2018 health data in the pipeline.
+
+```{r development-preprocess_2018_health}
+# Prepare the code of your function here
+```
+
+```{r function-preprocess_2018_health}
+#' preprocess_2018_health Title
+#'
+#' @return 1
+#' @export
+#'
+#' @examples
+preprocess_2018_health <- function(open_census, cohort_2018_deid, diagnosis_lookup = malagasy_diagnosis_lookup_table) {
+  
+  open_census %>%
+    clean_names() %>%
+    filter(!str_detect(member, "36841201")) %>%
+    select(prior_health_care:deathyear) %>%
+    bind_cols(select(cohort_2018_deid, uuid_clean = uuid, sex_clean = sex, age_group_clean = age_group), .) -> health_data
+
+  health_data %>%
+    create_health_diagnoses(., diagnosis_lookup = diagnosis_lookup) %>%
+    clean_2018_vaccinations() %>%
+    clean_2018_pregnancy() %>%
+    mutate(
+      surgical_history_clean = case_when(
+        surgeries == "Yes" ~ TRUE,
+        surgeries == "No" ~ FALSE,
+        TRUE ~ NA
+      ),
+      surgery_description_clean = case_when(
+        # values taken from the table() of the prior_surgeries column
+        is.na(prior_surgeries)                                              ~ NA_character_,
+        prior_surgeries == "&"                                              ~ NA_character_,
+        str_detect(prior_surgeries, "Niterak.*nididiana|Niterak nodidiana") ~ "Cesarean section",
+        str_detect(prior_surgeries, "apandisite")                           ~ "Appendectomy",
+        str_detect(prior_surgeries, "Voakiso.*tanan")                       ~ "Injury - hand trauma",
+        str_detect(prior_surgeries, "famaky.*tongotra|lasety.*tongotra")    ~ "Injury - foot laceration",
+        str_detect(prior_surgeries, "kakazo.*kirandra")                     ~ "Injury - ankle trauma",
+        str_detect(prior_surgeries, "omb.*kibo")                            ~ "Injury - animal trauma (zebu)",
+        TRUE ~ "Other / Unknown"
+      ),
+      deformities_clean = case_when(
+        is.na(visual_health_deformities)              ~ NA_character_,
+        visual_health_deformities == "Deformities na" ~ NA_character_,
+        !is.na(visual_health_deformities) & !is.na(other_visual_health_deformities) ~ str_c(visual_health_deformities, ", ", other_visual_health_deformities),
+        TRUE ~ visual_health_deformities
+      )
+    ) %>%
+    select(contains("clean")) %>%
+    rename_with(
+      ~ str_replace(., "_clean$", ""),
+      everything()
+    )
+  
+}
+```
+
+```{r examples-preprocess_2018_health}
+preprocess_2018_health(open_census, cohort_2018_deid) -> health_data_
+
+skim(health_data_)
+```
+
+```{r tests-preprocess_2018_health}
+test_that("preprocess_2018_health works", {
+  expect_true(inherits(preprocess_2018_health, "function"))
+})
+```
+
+
+```{r development-inflate, eval=FALSE}
+# Run but keep eval=FALSE to avoid infinite loop
+# Execute in the console directly
+fusen::inflate(flat_file = "dev/flat_preprocess_2018_health.Rmd", vignette_name = "Preprocessing 2018 Health Status", check = FALSE, open_vignette = FALSE)
+```
+

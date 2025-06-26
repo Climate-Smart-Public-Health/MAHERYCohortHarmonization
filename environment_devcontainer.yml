@@ -1,0 +1,16 @@
+name: mahery-cohort-harmonization
+channels:
+  - conda-forge
+  - judowill
+  - defaults
+dependencies:
+  - ca-certificates
+  - openssl
+  - pandoc
+  - jupyter
+  - certifi
+  #- judowill::gitflow
+  - git-filter-repo
+  - pip:
+    - radian
+#prefix: /n/home03/ttapera/.conda/envs/mahery-cohort-harmonization

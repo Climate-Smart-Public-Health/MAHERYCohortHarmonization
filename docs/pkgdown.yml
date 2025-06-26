@@ -1,7 +1,12 @@
 pandoc: 3.6.4
-pkgdown: 2.1.1
+pkgdown: 2.1.3
 pkgdown_sha: ~
 articles:
   get-started: get-started.html
+  opensrp-cohort-2018-preprocessing: opensrp-cohort-2018-preprocessing.html
+  OutputTables: OutputTables.html
+  preprocessing-2018-health-status: preprocessing-2018-health-status.html
+  preprocessing-2018-household-heads: preprocessing-2018-household-heads.html
+  reporting-with-pins-and-google-drive: reporting-with-pins-and-google-drive.html
   tracking-input-data: tracking-input-data.html
-last_built: 2025-03-25T15:32Z
+last_built: 2025-06-06T17:25Z

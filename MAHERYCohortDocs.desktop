@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=MAHERY Cohort Package Website
+Comment=Launch the documentation website for the cohort pipeline
+Exec=xdg-open /n/holylabs/LABS/cgolden_lab/Lab/projects/temp_mahery_cohort_docs/docs/index.html
+Icon=text-html
+Terminal=false
+Type=Application
+Categories=Development;
