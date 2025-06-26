@@ -5,14 +5,14 @@
 \title{has_drive_file_changed}
 \usage{
 has_drive_file_changed(
-  file_id,
+  drive_resource,
   last_known_run_time = ymd_hms("2025-04-01 00:00:00", tz = "UTC")
 )
 }
 \arguments{
-\item{file_id}{The ID of the file to check}
-
 \item{last_known_run_time}{The last known time the pipeline was frozen for running}
+
+\item{file_id}{The ID of the file to check}
 }
 \value{
 Boolean

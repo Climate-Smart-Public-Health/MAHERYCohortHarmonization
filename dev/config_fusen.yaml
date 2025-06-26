@@ -1,6 +1,21 @@
+flat_cohort_household_heads.Rmd:
+  path: dev/flat_cohort_household_heads.Rmd
+  state: active
+  R: R/preprocess_2018_household_heads.R
+  tests: tests/testthat/test-preprocess_2018_household_heads.R
+  vignettes: vignettes/preprocessing-2018-household-heads.Rmd
+  inflate:
+    flat_file: dev/flat_cohort_household_heads.Rmd
+    vignette_name: Preprocessing 2018 Household Heads
+    open_vignette: false
+    check: false
+    document: true
+    overwrite: ask
+    clean: ask
+    codecov: false
 flat_full.Rmd:
   path: dev/flat_full.Rmd
-  state: active
+  state: deprecated
   R:
   - R/my_median.R
   - R/my_other_median.R
@@ -11,8 +26,75 @@ flat_full.Rmd:
   inflate:
     flat_file: dev/flat_full.Rmd
     vignette_name: Get started
-    open_vignette: true
-    check: true
+    open_vignette: false
+    check: false
+    document: true
+    overwrite: ask
+    clean: ask
+    codecov: false
+flat_preprocess_2018.Rmd:
+  path: dev/flat_preprocess_2018.Rmd
+  state: active
+  R:
+  - R/audit_categorical_cleaning.R
+  - R/calculate_age_group.R
+  - R/clean_opencensus_dob.R
+  - R/fix_duplicate_misspelled_names.R
+  - R/generate_uid.R
+  - R/preprocess_opensrp2018.R
+  - R/recode_opensrp_education.R
+  tests:
+  - tests/testthat/test-audit_categorical_cleaning.R
+  - tests/testthat/test-clean_opencensus_dob.R
+  - tests/testthat/test-recode_opensrp_education.R
+  - tests/testthat/test-generate_uid.R
+  - tests/testthat/test-fix_duplicate_misspelled_names.R
+  - tests/testthat/test-preprocess_opensrp2018.R
+  vignettes: vignettes/opensrp-cohort-2018-preprocessing.Rmd
+  inflate:
+    flat_file: dev/flat_preprocess_2018.Rmd
+    vignette_name: OpenSRP Cohort 2018 Preprocessing
+    open_vignette: false
+    check: false
+    document: true
+    overwrite: ask
+    clean: ask
+    codecov: false
+flat_preprocess_2018_health.Rmd:
+  path: dev/flat_preprocess_2018_health.Rmd
+  state: active
+  R:
+  - R/clean_2018_pregnancy.R
+  - R/clean_2018_vaccinations.R
+  - R/create_health_diagnoses.R
+  - R/preprocess_2018_health.R
+  - R/health-care-access-diagnoses.R
+  tests:
+  - tests/testthat/test-create_health_diagnoses.R
+  - tests/testthat/test-clean_2018_vaccinations.R
+  - tests/testthat/test-clean_2018_pregnancy.R
+  - tests/testthat/test-preprocess_2018_health.R
+  vignettes: vignettes/preprocessing-2018-health-status.Rmd
+  inflate:
+    flat_file: dev/flat_preprocess_2018_health.Rmd
+    vignette_name: Preprocessing 2018 Health Status
+    open_vignette: false
+    check: false
+    document: true
+    overwrite: ask
+    clean: ask
+    codecov: false
+flat_reporting_pins.Rmd:
+  path: dev/flat_reporting_pins.Rmd
+  state: active
+  R: R/to_pinboard.R
+  tests: tests/testthat/test-to_pinboard.R
+  vignettes: vignettes/reporting-with-pins-and-google-drive.Rmd
+  inflate:
+    flat_file: dev/flat_reporting_pins.Rmd
+    vignette_name: Reporting with pins and Google Drive
+    open_vignette: false
+    check: false
     document: true
     overwrite: ask
     clean: ask
@@ -35,8 +117,8 @@ flat_tracking_inputs.Rmd:
   inflate:
     flat_file: dev/flat_tracking_inputs.Rmd
     vignette_name: Tracking Input Data
-    open_vignette: true
-    check: true
+    open_vignette: false
+    check: false
     document: true
     overwrite: ask
     clean: ask

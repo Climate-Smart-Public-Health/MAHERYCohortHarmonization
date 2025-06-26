@@ -1,0 +1,100 @@
+---
+title: "flat_preprocess_2019.Rmd empty"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r development, include=FALSE}
+library(testthat)
+```
+
+```{r development-load}
+# Load already included functions if relevant
+pkgload::load_all(export_all = FALSE)
+```
+
+# preprocess_srp2019
+
+Similar to the previous notebook, we are goign to preprocess the 2019 dharma data in this notebook.
+The goal is to create a function that will take the raw data and return a preprocessed version of the cohort
+to merge with the 2018 cohort. As before, we use the column suffix `_clean`
+to denote that the column has been cleaned and is being kept for analysis.
+
+```{r}
+library(here)
+library(dplyr)
+library(stringr)
+library(janitor)
+library(targets)
+library(skimr)
+library(forcats)
+library(lubridate)
+library(googledrive)
+library(ggplot2)
+library(ggalluvial)
+```
+
+## Data Structures
+
+The data for the dharma 2019 collection is stored in an excel file with multiple sheets. As before,
+we use the googledriver package to monitor and download it for access. In our targets pipeline,
+this file was called `Dharma_followup_2020plus.xlsx` and was tracked 
+
+First, we are going to load the data and do some basic EDA to see how the dharma data collection differs from
+the opensrp data collection.
+
+```{r}
+tar_load(dharma2019)
+```
+
+Like the 2018 data, the dharma 2019 data is stored in a list of data frames corresponding to sheets in the excel.
+
+> Level 0 Name is the household information such as the head of household and the GPS associated.
+> Level 0 Coded is the same as the household information but the values of the variables are only coded.
+> Level 1 Name is the individual member information. 
+> Level 1 Coded (same comment as above for Level 0 Coded)
+
+To find the cohort, we have to investigate the Level 1 Name sheet.
+
+```{r}
+dharma2019_dict <- dharma2019$`Data Dictionary`
+names(dharma2019)
+```
+
+We know that our data dictionary is in the last sheet, so we can keep that in mind for when
+we get to the involved questions. For now, let's try to recreate our cohort and see if they reproduce.
+
+```{r}
+level1_df <- dharma2019$`Level 1 Name`
+```
+
+```{r function-preprocess_2019}
+#' preprocess_2019 Title
+#'
+#' @return 1
+#' @export
+#'
+#' @examples
+preprocess_2019 <- function() {
+  1
+}
+```
+
+```{r examples-preprocess_2019}
+preprocess_2019()
+```
+
+```{r tests-preprocess_2019}
+test_that("preprocess_2019 works", {
+  expect_true(inherits(preprocess_2019, "function"))
+})
+```
+
+
+```{r development-inflate, eval=FALSE}
+# Run but keep eval=FALSE to avoid infinite loop
+# Execute in the console directly
+fusen::inflate(flat_file = "dev/flat_preprocess_2019.Rmd", vignette_name = "Go further")
+```
+

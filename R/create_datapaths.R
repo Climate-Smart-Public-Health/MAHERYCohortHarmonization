@@ -26,6 +26,7 @@ create_datapaths <- function() {
 
   # Create folders
   fs::dir_create(full_paths)
+  purrr::walk(full_paths, Sys.chmod, mode = "0755")
 
   # Create .gitkeep files in each subdir to keep them in version control
   fs::file_create(fs::path(full_paths, ".gitkeep"))

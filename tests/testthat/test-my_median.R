@@ -6,7 +6,10 @@ test_that("my_median works properly and show error if needed", {
 })
 
 # Test with your dataset in "inst/"
-datafile <- system.file("nyc_squirrels_sample.csv", package = "MAHERYCohortHarmonization")
+datafile <- system.file(
+  "nyc_squirrels_sample.csv",
+  package = "MAHERYCohortHarmonization"
+)
 nyc_squirrels <- read.csv(datafile, encoding = "UTF-8")
 # Apply test on my function
 test_that("my_median works properly with internal dataset", {

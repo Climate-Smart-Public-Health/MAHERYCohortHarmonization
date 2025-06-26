@@ -119,6 +119,8 @@ if the file is changed.
   
   
 ```{r example-has_drive_file_changed}
+#| eval: no
+
 test_file <- "1X9pd4nOjl33zDFfTjw-_eFL7Qb9_g6VfVFDp1PPae94"
 has_drive_file_changed(test_file, lubridate::ymd_hms("2025-04-01 00:00:00", tz = "UTC"))
 ```
@@ -160,6 +162,8 @@ the target pipeline.
   
   
 ```{r example-download_to_local}
+#| eval: no
+
 authenticate_google_drive()
 test_file <- "openSRP_dictionary.xlsx"
 fpath <- download_to_local(test_file, here::here())
