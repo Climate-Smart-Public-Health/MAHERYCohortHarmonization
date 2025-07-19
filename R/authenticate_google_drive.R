@@ -20,7 +20,7 @@ authenticate_google_drive <- function() {
 
   tryCatch({
     
-    drive_auth(path = path_to_auth, use_oob = FALSE, cache = TRUE)
+    drive_auth(path = path_to_auth)
     return(TRUE)
 
   }, error = function(e) {

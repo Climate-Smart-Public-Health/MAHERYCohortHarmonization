@@ -1,0 +1,51 @@
+---
+title: "flat_dharma_cohort_2019_preprocessing.Rmd empty"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r development, include=FALSE}
+library(testthat)
+```
+
+```{r development-load}
+# Load already included functions if relevant
+pkgload::load_all(export_all = FALSE)
+```
+
+# dharma_cohort_2019_preprocessing
+
+```{r development-dharma_cohort_2019_preprocessing}
+# Prepare the code of your function here
+```
+
+```{r function-dharma_cohort_2019_preprocessing}
+#' dharma_cohort_2019_preprocessing Title
+#'
+#' @return 1
+#' @export
+#'
+#' @examples
+dharma_cohort_2019_preprocessing <- function() {
+  1
+}
+```
+
+```{r examples-dharma_cohort_2019_preprocessing}
+dharma_cohort_2019_preprocessing()
+```
+
+```{r tests-dharma_cohort_2019_preprocessing}
+test_that("dharma_cohort_2019_preprocessing works", {
+  expect_true(inherits(dharma_cohort_2019_preprocessing, "function"))
+})
+```
+
+
+```{r development-inflate, eval=FALSE}
+# Run but keep eval=FALSE to avoid infinite loop
+# Execute in the console directly
+fusen::inflate(flat_file = "dev/flat_dharma_cohort_2019_preprocessing.Rmd", vignette_name = "Go further")
+```
+

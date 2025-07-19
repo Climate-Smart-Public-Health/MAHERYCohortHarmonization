@@ -336,18 +336,24 @@ health_data %>%
 
 These will likely need a deliberate translation.
 
-Lastly, deformities will also get a translation:
+Lastly, deformities will simply get a translation:
 ```{r}
-health_data %>%
+health_data_ %>%
   select(contains("deformit")) %>%
   table()
 ```
 
 
+We'll just concatenate the deformities and other deformities columns into a single column
+and then translate them into English.
+  
+  
+  
+
+
 # preprocess_2018_health
 
 The final function will combine all of these steps into a single function that can be used to preprocess the 2018 health data in the pipeline.
-
 
 ```{r examples-preprocess_2018_health}
 preprocess_2018_health(open_census, cohort_2018_deid) -> health_data_
