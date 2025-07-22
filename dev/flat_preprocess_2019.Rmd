@@ -16,7 +16,7 @@ pkgload::load_all(export_all = FALSE)
 
 # preprocess_srp2019
 
-Similar to the previous notebook, we are goign to preprocess the 2019 dharma data in this notebook.
+Similar to the previous notebook, we are going to preprocess the 2019 dharma data in this notebook.
 The goal is to create a function that will take the raw data and return a preprocessed version of the cohort
 to merge with the 2018 cohort. As before, we use the column suffix `_clean`
 to denote that the column has been cleaned and is being kept for analysis.
@@ -24,8 +24,9 @@ to denote that the column has been cleaned and is being kept for analysis.
 ```{r}
 library(here)
 library(dplyr)
+library(tidyr)
 library(stringr)
-library(janitor)
+#library(janitor)
 library(targets)
 library(skimr)
 library(forcats)
@@ -33,6 +34,7 @@ library(lubridate)
 library(googledrive)
 library(ggplot2)
 library(ggalluvial)
+library(DT)
 ```
 
 ## Data Structures
@@ -50,24 +52,292 @@ tar_load(dharma2019)
 
 Like the 2018 data, the dharma 2019 data is stored in a list of data frames corresponding to sheets in the excel.
 
-> Level 0 Name is the household information such as the head of household and the GPS associated.
-> Level 0 Coded is the same as the household information but the values of the variables are only coded.
-> Level 1 Name is the individual member information. 
-> Level 1 Coded (same comment as above for Level 0 Coded)
+```
+Level 0: Household enrollment 
+Level 1: Individuals in household
+Level 2: Antropometric data (every 3 months), dietary intake data collected from head of household (every 4 months), followup data.
+```
 
-To find the cohort, we have to investigate the Level 1 Name sheet.
+We have a data dictionary that we can reference:
 
 ```{r}
 dharma2019_dict <- dharma2019$`Data Dictionary`
-names(dharma2019)
+dharma2019_dict %>%
+  fill(level, .direction = "down") -> dharma2019_dict
+
+level_1_dict <- dharma2019_dict %>%
+  filter(level == 1)
+level_1_dict
 ```
 
-We know that our data dictionary is in the last sheet, so we can keep that in mind for when
-we get to the involved questions. For now, let's try to recreate our cohort and see if they reproduce.
+This should hopefully be a tidy reference for the cohort level data.
+
+Our goal is to see the final structure of the cohort match this:
 
 ```{r}
-level1_df <- dharma2019$`Level 1 Name`
+tar_read("cohort_2018_deid") %>%
+  head()
 ```
+
+We'll use the `Level 1` sheet for the individual data.
+
+```{r}
+cohort_df <- dharma2019$`Level 1 Named`
+
+# some na filtering
+cohort_df %>%
+  filter(!is.na(L1_q1_name)) %>%
+  filter(L1_q1_name != ".") %>% 
+  filter(!is.na(L1_q10_ethnicity)) %>%
+  filter(L1_q10_ethnicity != ".") -> cohort_df_
+```
+
+## Name Cleaning
+
+To find the enrollee's name, we use Level 1's name data:
+
+```{r}
+cohort_df_ %>%
+  select(L1_q1_name) %>%
+  table()
+```
+
+Let's first clean these names to remove extraneous whitespace and have it all
+in lowercase:
+
+```{r}
+cohort_df_ <- cohort_df_ %>%
+  mutate(
+    name_clean = L1_q1_name %>%
+      str_to_lower() %>%
+      str_replace("\\.", " ") %>% # remove the period from names; I don't know why it was allowed in
+      str_squish()
+    )
+```
+
+We need to figure out who the duplicates are in the dataset.
+
+```{r}
+cohort_df_ %>%
+  #select(L1_q1_name) %>%
+  group_by(name_clean) %>%
+  summarise(n = n()) %>%
+  filter(n > 1) %>% pull(name_clean) -> duplicate_names
+
+cohort_df_ %>%
+  filter(name_clean %in% duplicate_names) %>%
+  arrange(name_clean) %>%
+  select(contains("clean"), everything())
+```
+
+A good strategy will be to first salt the unique identifiers using the
+name, birthdate, and household head name, and then remove the duplicates
+from the unique identifiers, so we'll leave them in for now.
+    
+```{r development-clean_dharma_names}
+# You can prepare the code of the clean_dharma_names() function here
+```
+  
+```{r function-clean_dharma_names}
+#' Clean participant names from DHARMA survey data
+#'
+#' This function standardizes participant names from the `L1_q1_name` column 
+#' by converting them to lowercase, replacing periods with spaces, and removing
+#' extra whitespace.
+#'
+#' @param df A data frame containing a column named `L1_q1_name` with participant names.
+#'
+#' @return A data frame with an additional column `name_clean` containing the cleaned names.
+#'
+#' @details The function replaces literal periods (`.`) in names with spaces using 
+#' regular expression syntax, then collapses any multiple spaces into one. This is useful 
+#' for ensuring consistent formatting in name-based joins or comparisons.
+#'
+#' @examples
+#' df <- tibble::tibble(L1_q1_name = c("ALICE  Smith", " Bob Jones ", "c. miller"))
+#' clean_dharma_names(df)
+#'
+#' @export
+clean_dharma_names <- function(df){
+    
+  df %>%
+    mutate(
+      name_clean = L1_q1_name %>%
+        str_to_lower() %>%
+        str_replace("\\.", " ") %>% # remove the period from names; I don't know why it was allowed in
+        str_squish()
+    ) 
+}
+```
+  
+```{r tests-clean_dharma_names}
+test_that("clean_dharma_names works", {
+  expect_true(inherits(clean_dharma_names, "function")) 
+})
+```
+
+An unresolved question: what does the capitalization signify?
+
+## DoB
+
+Next we'll handle the date of birth,
+similar to how it was done in the 2018 cohort. We can run it
+as-is and see the errors:
+
+```{r}
+cohort_df_ %>%
+  mutate(
+    dob_date = L1_q5_dob_date,
+    dob_year = L1_q2_dob_year,
+    dob_month = L1_q4_dob_month,
+    dob_actual = L1_q6_actual_dob
+  ) %>%
+  clean_opencensus_dob() -> cohort_df_
+  
+cohort_df_ %>%
+  select(contains("clean"), contains("dob")) %>%
+  select(-name_clean) %>%
+  filter(is.na(dob_clean)) -> dob_errors
+
+cohort_df_ %>%
+  select(dob_clean) %>%
+  summary()
+```
+
+
+Notably, some of these are expected errors, such as 31 September,
+29 February in 1997, and so on. So we will assume these are
+acceptable errors and proceed with the rest of the data cleaning.
+
+```{r}
+datatable(dob_errors)
+```
+
+## Ethnicity
+
+Next, we deal with ethnicity, which fortunately is pretty clean already:
+
+```{r}
+cohort_df_ %>% 
+  mutate(ethnicity_clean = str_to_lower(L1_q10_ethnicity)) -> cohort_df_
+```
+
+```{r}
+cohort_df_ %>%
+  select(ethnicity_clean) %>%
+  table()
+```
+
+## Education
+
+This is similarly simple, and we can use the same encoding and function as the 2018 cohort:
+
+```{r}
+cohort_df_ %>%
+  mutate(education = str_to_sentence(L1_q169_education) %>% str_replace("Universite", "University")) %>%
+  recode_opensrp_education() %>%
+  select(education, education_level_clean) %>% table()
+```
+
+We'll replace the missing values with NAs, as they must be missing not at random:
+
+```{r}
+cohort_df_ %>%
+  mutate(education = str_to_sentence(L1_q169_education) %>% str_replace("Universite", "University")) %>%
+  recode_opensrp_education() %>%
+  mutate(education_level_clean = ifelse(education_level_clean == ".", NA, education_level_clean)) -> cohort_df_
+```
+
+## Profession
+
+We don't have a prepared function for this, but it is fairly easy to do:
+
+```{r}
+prof_columns <- names(cohort_df_) %>%
+  str_subset(., "what_occupation|other_occupation")
+
+cohort_df_ %>%
+  select(all_of(prof_columns)) %>%
+  mutate(across(everything(), ~ str_replace(., "\\.|Other", NA_character_))) %>%
+  unite(occupation, everything(), na.rm=TRUE) %>%
+  distinct()
+```
+
+These are all the options for professions. Unlike the OpenSRP data, 
+we can see that respondents were allowed to select multiple professions.
+In this case, we can join them in a string so that researchers can
+have access to the full list of professions.
+
+Our function for processing professions will also translate
+the Malagasy professions to English, so that we can have a consistent
+set of professions across the cohorts.
+    
+```{r development-clean_2019_profession}
+# You can prepare the code of the clean_2019_profession() function here
+```
+  
+```{r function-clean_2019_profession}
+#' Title
+#' 
+#' Description
+#' 
+#' @return
+#' 
+#' @export
+clean_2019_profession <- function(df){
+
+  prof_columns <- names(df) %>%
+    str_subset(., "what_occupation|other_occupation")
+
+  df %>%
+    select(all_of(prof_columns)) %>%
+    mutate(across(everything(), ~ str_replace(., "\\.|Other", NA_character_))) %>%
+    unite(occupation, everything(), na.rm=TRUE) -> df_
+  
+  df %>%
+    mutate(employment_status_clean = 
+      case_when(
+        L1_q12_occupation == "No" ~ "inactive",
+        L1_q12_occupation == "Yes"  ~ "employed",
+        L1_q13_what_occupation.006 == "Student" ~ "not applicable",
+        TRUE ~ NA_character_
+
+      )
+    ) %>%
+    mutate(
+      occupation = df_$occupation
+    ) %>%
+    mutate(
+      profession_clean = case_when(
+        str_detect(str_to_lower(occupation), "^farmer$") ~ "farmer",
+        str_detect(str_to_lower(occupation), "^shop owner$") ~ "shop owner",
+        str_detect(str_to_lower(occupation), "^teacher$") ~ "teacher",
+        str_detect(str_to_lower(occupation), "student") ~ "student",
+        str_detect(str_to_lower(occupation), "manjaitra") ~ "tailor",
+        str_detect(str_to_lower(occupation), "mpanjaitra") ~ "tailor",
+        str_detect(str_to_lower(occupation), "infirmier") ~ "nurse",
+        str_detect(str_to_lower(occupation), "sage-femme") ~ "midwife",
+        str_detect(str_to_lower(occupation), "mpiasa andakana") ~ "artisan",
+        str_detect(str_to_lower(occupation), "government") ~ "government worker",
+        str_detect(str_to_lower(occupation), "caretaker") ~ "caretaker",
+        str_detect(str_to_lower(occupation), "mecaniscien") ~ "mechanic",
+        TRUE ~ NA_character_
+      )
+    )
+}
+```
+  
+```{r tests-clean_2019_profession}
+test_that("clean_2019_profession works", {
+  expect_true(inherits(clean_2019_profession, "function")) 
+})
+```
+  
+```{r}
+
+```
+
+
 
 ```{r function-preprocess_2019}
 #' preprocess_2019 Title

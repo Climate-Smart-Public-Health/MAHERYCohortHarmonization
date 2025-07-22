@@ -5,12 +5,23 @@ editor_options:
   chunk_output_type: console
 ---
 
+In this notebook, we will create a template for functions that can be used to preprocess the dharma cohort 2019 data.
+The goal is to have a consistent way to preprocess the data, which can then be used in the pipeline.
+The functions in this notebook will be used to create a consistent interface for preprocessing the data
+to the GoogleDrive folder.
+
 ```{r development, include=FALSE}
 library(testthat)
 ```
 
 ```{r development-load}
 # Load already included functions if relevant
+pkgload::load_all(export_all = FALSE)
+```
+
+First, let's explore the dataset to see what we have and what we need to preprocess.
+
+```{r setup}
 pkgload::load_all(export_all = FALSE)
 ```
 
