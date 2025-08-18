@@ -230,5 +230,14 @@ list(
       open_census <- opensrp$`Open census`
       preprocess_2018_health(open_census, cohort_2018_deid)
     }
+  ),
+
+  # now we can preprocess the Dharma 2019 cohort
+  tar_target(
+    name = cohort_2019,
+    command = {
+      preprocess_2019(dharma2019)
+    }
   )
+
 )

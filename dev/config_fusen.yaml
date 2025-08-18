@@ -67,6 +67,27 @@ flat_preprocess_2018_health.Rmd:
     overwrite: ask
     clean: ask
     codecov: false
+flat_preprocess_2019.Rmd:
+  path: dev/flat_preprocess_2019.Rmd
+  state: active
+  R:
+  - R/clean_dharma_names.R
+  - R/clean_2019_profession.R
+  - R/preprocess_2019.R
+  tests:
+  - tests/testthat/test-clean_dharma_names.R
+  - tests/testthat/test-clean_2019_profession.R
+  - tests/testthat/test-preprocess_2019.R
+  vignettes: vignettes/preprocessing-dharma-2019-cohort.Rmd
+  inflate:
+    flat_file: dev/flat_preprocess_2019.Rmd
+    vignette_name: Preprocessing Dharma 2019 Cohort
+    open_vignette: false
+    check: false
+    document: true
+    overwrite: ask
+    clean: ask
+    codecov: false
 flat_reporting_pins.Rmd:
   path: dev/flat_reporting_pins.Rmd
   state: active

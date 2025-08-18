@@ -699,23 +699,16 @@ calculate_age_group <- function(dob, reference_date = Sys.Date()) {
   age <- floor(age)
 
   cut(
-    age,
-    breaks = c(-Inf, 0, 1, 4, 9, 14, 19, 24, 49, 64, Inf),
+    as.numeric(age),
+    breaks = c(0, 1, 4, 9, 14, 19, 24, 49, 64, Inf),
     labels = c(
-      "Under 1",
-      "1–4",
-      "5–9",
-      "10–14",
-      "15–19",
-      "20–24",
-      "25–49",
-      "50–64",
-      "65+",
-      "Unknown"  # this one is just a filler, but not needed unless age has NA
-    )[1:10],  # only include 10 labels
+      "Under 1", "1–4", "5–9", "10–14", "15–19",
+      "20–24", "25–49", "50–64", "65+"
+    ),
     right = TRUE,
     include.lowest = TRUE
-  )
+  ) %>%
+  fct_explicit_na(na_level = "Unknown")
 }
 ```
 
@@ -836,21 +829,36 @@ later, and assign anyone with HH head name "Chely" to the same household.
 ```
   
 ```{r function-fix_duplicate_misspelled_names}
-#' Add ordinal suffixes to repeated household head names by date
+#' Fix known misspellings and assign corrected household head names
 #'
-#' This function modifies a data frame by appending Roman numeral suffixes
-#' (e.g., " ii", " iii") to a specific household head name that appears more than once.
-#' The suffixes are added in chronological order based on a date column, beginning with
-#' the second occurrence. Only the specified name is modified; all others remain unchanged.
+#' This function applies hand-curated corrections to a set of known misspelled names in a 
+#' data frame. It replaces values in the specified `name_col` with standardized spellings 
+#' using a hard-coded correction map. In addition, it conditionally renames household heads 
+#' in both the `name_col` and `hh_col` columns for specific known ID patterns.
 #'
-#' @param df A data frame containing at least the household name and date columns.
-#' @param target_name A character string specifying the exact name to deduplicate and label (e.g., "be zela").
-#' @param name_col A column in `df` that contains the household head names. Defaults to `hh_head_name_clean`.
-#' @param date_col A column in `df` that contains an identifier for the recorded date. Defaults to `submission_date`.
+#' @param df A data frame containing at least a name column, a household head name column,
+#' and an `id` column used for conditional overrides.
+#' @param name_col The unquoted name of the column in `df` containing the original (possibly misspelled) names.
+#' Defaults to `name`.
+#' @param hh_col The unquoted name of the column in `df` containing the household head names.
+#' Defaults to `hh_head_name`.
 #'
-#' @return A data frame with the specified name deduplicated by date, using ordinal suffixes.
-#' Other names remain unchanged.
-#' 
+#' @return A data frame with standardized name values in `name_col`, and selected rows in `hh_col`
+#' updated based on predefined `id` patterns. A new column is not created; the original columns are modified.
+#'
+#' @details
+#' - Known misspellings are replaced based on a hardcoded correction map.
+#' - Specific IDs (e.g., those starting with `"A3dd6eda"` and `"48149ba9"`) are assigned known corrected names
+#'   directly in both `name_col` and `hh_col`.
+#'
+#' @examples
+#' df <- tibble::tibble(
+#'   id = c("A3dd6eda123", "48149ba9111", "otherid"),
+#'   name = c("eddy", "unknown", "juliette"),
+#'   hh_head_name = c("eddy", "unknown", "juliette")
+#' )
+#' fix_duplicate_misspelled_names(df)
+#'
 #' @export
 fix_duplicate_misspelled_names <- function(df, name_col = name, hh_col = hh_head_name) {
   name_col_sym <- rlang::enquo(name_col)
@@ -977,7 +985,7 @@ preprocess_opensrp2018 <- function(open_census){
     select(-dob_date_clean, -dob_month_clean) %>%
     rename_all(~ str_replace(., "_clean", "")) %>%
     rowwise() %>%
-    mutate(uuid = generate_uid(salt=Sys.getenv("UUID_SALT"), name, hh_head_name, as.character(dob))) %>%
+    mutate(uuid = generate_uid(salt=Sys.getenv("UUID_SALT"), name, hh_head_name, as.character(dob), sex)) %>%
     ungroup() %>%
     # this removes one row of duplicates from bilina victor
     distinct() %>%
