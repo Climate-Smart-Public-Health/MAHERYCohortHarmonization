@@ -238,6 +238,9 @@ measure constitutes one person's month's data.
 * For rolling up the clinic to cohort data, we can roll up the
 symptoms to ICD10 codes, but preserve the original translations in table.
 
+* see: https://docs.google.com/presentation/d/10ftfDtWDckiPdgOmpoFd9Y2X1cfeLvuT9zPdMZKbmNI/
+
+
 ```{r development-preprocess_2019_health}
 # Prepare the code of your function here
 ```
