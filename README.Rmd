@@ -1,5 +1,6 @@
 ---
 output: github_document
+always_allow_html: true
 ---
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
@@ -63,27 +64,53 @@ You can install the development version of MAHERYCohortHarmonization like so:
 # FILL THIS IN! HOW CAN PEOPLE INSTALL YOUR DEV PACKAGE?
 ```
 
-## Example
+## Pipeline
 
-This is a basic example which shows you how to solve a common problem:
+The pipeline is managed by `targets`, which is a powerful R package for reproducible data analysis. It allows you to define a series of steps (or targets) that will be executed in order, ensuring that your analysis is reproducible and efficient.
+The pipeline is deefined in the `_targets.R` file. The functions we create to build this
+pipeline are defined in the notebooks in the `dev/` directory, and exported to the `R`
+directory using `fusen`.
 
-```{r example}
-library(MAHERYCohortHarmonization)
-## basic example code
+You can run the pipeline using the following command:
+``` r
+library(targets)
+
+tar_make()
 ```
 
-What is special about using `README.Rmd` instead of just `README.md`? You can include R chunks like so:
+Here is the current state of the pipeline:
 
-```{r cars}
-summary(cars)
+```{r}
+library(targets)
+library(DiagrammeR)
+library(DiagrammeRsvg)
+library(rsvg)
+library(dplyr)
+network <- tar_network()
+
+# Optional: filter out internal targets like `.Random.seed`
+vertices <- network$vertices %>% filter(!grepl("^\\.", name))
+
+# Build node declarations
+node_lines <- sprintf('  "%s";', vertices$name)
+
+# Filter edges to match cleaned nodes
+edges <- network$edges %>%
+  filter(from %in% vertices$name, to %in% vertices$name)
+
+# Build edge connections
+edge_lines <- sprintf('  "%s" -> "%s";', edges$from, edges$to)
+
+# Assemble DOT graph string
+dot_code <- c("digraph targets_pipeline {", node_lines, edge_lines, "}")
+dot_string <- paste(dot_code, collapse = "\n")
+
+# Create grViz graph
+graph <- grViz(dot_string)
+
+svg_path <- "man/figures/pipeline_dag.svg"
+svg_string <- export_svg(graph)
+writeLines(svg_string, svg_path)
 ```
 
-You'll still need to render `README.Rmd` regularly, to keep `README.md` up-to-date. `devtools::build_readme()` is handy for this.
-
-You can also embed plots, for example:
-
-```{r pressure, echo = FALSE}
-plot(pressure)
-```
-
-In that case, don't forget to commit and push the resulting figure files, so they display on GitHub and CRAN.
+![Pipeline Graph](man/figures/pipeline_dag.svg)

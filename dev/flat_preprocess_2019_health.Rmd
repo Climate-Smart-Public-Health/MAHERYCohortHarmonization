@@ -1,0 +1,276 @@
+---
+title: "flat_preprocess_2019_health.Rmd empty"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r development, include=FALSE}
+library(testthat)
+```
+
+```{r setup}
+library(here)
+library(targets)
+tar_load(dharma2019, store = here::here("_targets"))
+
+# Load already included functions if relevant
+pkgload::load_all(export_all = FALSE)
+
+library(janitor)
+library(dplyr)
+library(tidyr)
+library(lubridate)
+library(skimr)
+library(forcats)
+library(stringr)
+library(ggplot2)
+```
+
+This notebooks deals with the 2019 file's health data.
+
+Let's begin:
+
+## Reading in the data
+
+The data is read in from the targets pipeline, and is contained in the `dharma2019` object.
+
+To get the same number of rows we rerun the same NA filtering as
+in the cohort 2019 notebook:
+
+```{r}
+cohort_df <- dharma2019$`Level 1 Named`
+
+# create household head name
+household_df <- dharma2019$`Level 0 Named` %>%
+  select(fact_0_id, L0_q2_hh_name) %>%
+  rename(hh_head_name = L0_q2_hh_name) %>%
+  distinct() %>%
+  mutate(hh_head_name = na_if(hh_head_name,".")) %>%
+  filter(!is.na(hh_head_name))
+
+# some na filtering
+cohort_df %>%
+  fill(fact_0_id, .direction = "down") %>%
+  filter(!is.na(L1_q39_date)) %>%
+  filter(L1_q39_date != ".") %>% 
+  filter(!is.na(L1_q1_name)) %>%
+  filter(L1_q1_name != ".") %>% 
+  filter(!is.na(L1_q1_name)) %>%
+  filter(L1_q1_name != ".") %>% 
+  filter(!is.na(L1_q8_gender)) %>%
+  filter(L1_q8_gender != ".") %>%
+  filter(!is.na(L1_q2_dob_year)) %>%
+  filter(L1_q2_dob_year != ".") %>%
+
+  #join household head name
+  left_join(household_df, by = "fact_0_id") -> cohort_2019_health
+```
+
+We can use the data dictionary to see what columns are available.
+
+```{r}
+dharma2019_dict <- dharma2019$`Data Dictionary`
+dharma2019_dict %>%
+  fill(level, .direction = "down") -> dharma2019_dict
+
+level_1_dict <- dharma2019_dict %>%
+  filter(level == 1)
+level_1_dict
+```
+
+Now, to get the matching health columns for 2019, we match the
+2018 health columns to the most relevant 2019 columns.
+
+## Health Care Access & Diagnoses
+
+This section will align with the `prior_health_care` and `prior_diagnoses` sections
+
+```{r}
+cohort_2019_health %>%
+  select(L1_q16_visit_hosp_clinic) %>%
+  table()
+```
+
+```{r}
+cohort_2019_health %>%
+  mutate(prior_health_care_clean = case_when(
+    L1_q16_visit_hosp_clinic == "Yes" ~ "Yes",
+    L1_q16_visit_hosp_clinic == "No" ~ "No",
+    L1_q16_visit_hosp_clinic == "IDK" ~ "Unknown",
+    TRUE ~ NA_character_
+  ) %>% as.factor()) -> cohort_2019_health_
+```
+
+We fortunately already have the diagnoses in wide format so we can work with that:
+
+```{r}
+diagnoses <- level_1_dict %>%
+  fill(column_name, .direction = "down") %>%
+  filter(str_detect(column_name, "q17_diagnostic")) %>%
+  select(choice_name) %>%
+  pull(choice_name) %>%
+  make_clean_names() %>%
+  str_replace_all("vih", "hiv") %>%
+  str_c("diag_", ., "_clean")
+
+```
+
+Now, we can rename the columns in the health table with these
+diagnoses:
+```{r}
+ind_diagnoses <- names(cohort_2019_health_) %>%
+  str_detect("L1_q17_diagnostic") %>%
+  which()
+
+names(cohort_2019_health_)[ind_diagnoses] <- diagnoses
+```
+
+```{r}
+cohort_2019_health_ %>%
+  mutate(across(contains("diag_"), ~ case_when(
+    . == "." ~ NA,
+    . == NA ~ NA,
+    TRUE ~ TRUE
+  ) %>% as.factor())) -> cohort_2019_health_
+  
+cohort_2019_health_%>%
+  select(contains("diag_")) %>%
+  summary()
+```
+
+Much easier! Now, we deal with the "other" diagnoses:
+
+```{r}
+cohort_2019_health_ %>%
+  tabyl(L1_q18_other_diagnostic)
+```
+
+This will require some manual cleaning as well as the same strategy for
+cleaning the "other" diagnoses as we did in the 2018 notebook, using a
+translation lookup table.
+
+We'll leave this for now.
+
+## Vaccinations
+
+Categorising vaccinations will be similar to 2018:
+
+```{r}
+cohort_2019_health_ %>%
+  select(L1_q26_vaccine_card) %>%
+  table()
+```
+
+## Level 2 Health Data
+
+In addition to this, there are level 2 health data that is collected
+for each individual multiple times per year.
+
+```{r}
+cohort_2019_anthro <- dharma2019$`Level 2 Named`
+level_2_dict <- dharma2019_dict %>%
+  filter(level == 2)
+```
+
+The level 2 data is collected at the following time points:
+
+```{r}
+cohort_2019_anthro %>%
+  select(L2_q38_date_followup) %>%
+  mutate(date = L2_q38_date_followup %>%
+    na_if("\\.") %>% 
+    as.numeric() %>%
+    convert_to_date()) %>%
+  select(date) %>%
+  ggplot(aes(x = date)) +
+  geom_histogram(binwidth = 30) +
+  labs(title = "Level 2 data collection dates in 2019", x = "Date", y = "Count")
+```
+
+As we can see, the data is supposed to correspond to a 2019 data collection
+window, but extends to almost the end of 2020.
+
+Naively, we can check to see if people get multiple surveys:
+
+```{r}
+cohort_2019_anthro %>%
+  fill(fact_1_id, .direction = "down") %>%
+  filter(!deleted) %>%
+  group_by(fact_1_id) %>%
+  summarise(n_surveys = n()) %>%
+  arrange(-n_surveys)
+```
+
+It seems unusual to me that an individual could have 20 entries in one
+file:
+
+```{r}
+cohort_2019_anthro %>%
+  fill(fact_0_id, fact_1_id, .direction = "down") %>%
+  filter(!deleted) %>%
+  filter(fact_1_id == 8864710) %>%
+  mutate(date = L2_q38_date_followup %>%
+    na_if("\\.") %>% 
+    as.numeric() %>%
+    convert_to_date()) %>%
+  select(date) %>% table()
+```
+
+Ok, it is encouraging that the dates are all different. This would mean that,
+for some people, they have multiple follow ups in the same year. However,
+it is hard to tell, since they are all in the same file, which questions are
+for monthly and which are for the multiple month follow ups.
+
+Let's see how many follows ups the average person has:
+
+```{r}
+cohort_2019_anthro %>%
+  fill(fact_0_id, fact_1_id, .direction = "down") %>%
+  filter(!deleted)
+```
+
+# preprocess_2019_health
+
+* This function should output month-individuals as rows, where each unit of
+measure constitutes one person's month's data.
+
+* For rolling up the clinic to cohort data, we can roll up the
+symptoms to ICD10 codes, but preserve the original translations in table.
+
+* see: https://docs.google.com/presentation/d/10ftfDtWDckiPdgOmpoFd9Y2X1cfeLvuT9zPdMZKbmNI/
+
+
+```{r development-preprocess_2019_health}
+# Prepare the code of your function here
+```
+
+```{r function-preprocess_2019_health}
+#' preprocess_2019_health Title
+#'
+#' @return 1
+#' @export
+#'
+#' @examples
+preprocess_2019_health <- function() {
+  1
+}
+```
+
+```{r examples-preprocess_2019_health}
+preprocess_2019_health()
+```
+
+```{r tests-preprocess_2019_health}
+test_that("preprocess_2019_health works", {
+  expect_true(inherits(preprocess_2019_health, "function"))
+})
+```
+
+
+```{r development-inflate, eval=FALSE}
+# Run but keep eval=FALSE to avoid infinite loop
+# Execute in the console directly
+fusen::inflate(flat_file = "dev/flat_preprocess_2019_health.Rmd", vignette_name = "Go further")
+```
+

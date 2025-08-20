@@ -9,3 +9,7 @@ inst/doc
 .Renviron
 
 sandbox
+/doc/
+/Meta/
+data*
+docs

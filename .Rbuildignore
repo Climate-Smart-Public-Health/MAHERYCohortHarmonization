@@ -1,6 +1,12 @@
+^environment\.yml$
 ^renv$
 ^renv\.lock$
 ^dev$
 ^\.here$
 ^LICENSE\.md$
 ^README\.Rmd$
+^doc$
+^Meta$
+^_pkgdown\.yml$
+^docs$
+^pkgdown$

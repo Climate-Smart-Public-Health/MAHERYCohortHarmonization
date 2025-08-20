@@ -1,0 +1,15 @@
+.callout {
+  border-left: 4px solid #007acc;
+  background-color: #eef5ff;
+  padding: 1em;
+  margin: 1em 0;
+  border-radius: 5px;
+}
+
+.warning {
+  border-left: 4px solid #dc3545;
+  background-color: #f8d7da;
+  padding: 1em;
+  margin: 1em 0;
+  border-radius: 5px;
+}

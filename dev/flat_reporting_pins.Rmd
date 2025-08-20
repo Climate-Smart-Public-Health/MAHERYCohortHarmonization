@@ -1,0 +1,225 @@
+---
+title: "flat_reporting_pins.Rmd empty"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r development, include=FALSE}
+library(testthat)
+```
+
+```{r development-load}
+# Load already included functions if relevant
+pkgload::load_all(export_all = FALSE)
+```
+
+# Reporting with `pins` Compliant Data
+
+This notebook creates a template for functions for reporting using the `pins` package.
+
+The motivation for these functions is that we want a consistent way to report results from the pipeline,
+but the data cannot be shared directly on a github pages site due to privacy concerns.
+The `pins` package allows us to store data in a remote location, such as a cloud storage service,
+and share it with collaborators without exposing sensitive information.
+The functions in this notebook will be used to create a consistent interface for reporting results from the pipeline
+to the GoogleDrive folder 
+
+To use GoogleDrive as a pin board, you first need to set up a folder on Google Drive and
+assign it as a board:
+
+```{r}
+#install.packages("pins")
+library(pins)
+library(googledrive)
+library(dplyr)
+library(ggplot2)
+library(here)
+library(fs)
+
+```
+
+As part of our Lab Organization efforts, we have created a designated
+drive folder for all things MAHERY Cohort Harmonization. In this folder,
+we're going to dedicated a subfolder for the pinboard at 
+`/Projects/Climate-Smart Public Health - Madagascar/5. Data & Code Elements/pin_boards/MAHERYCohortHarmonization`[^1]
+
+[^1]: Note that the board name matches the GitHub repository name exactly. The path to the pin board can be stored as an environment variable as a share link generated from Google as normal. As with our tracking data pipeline settings, we also need to share the folder with the Google Drive service account (but this can be shared with your personal Google Drive if you prefer).
+
+You can create a pinboard with the following code:
+
+```{r, eval=FALSE}
+
+# important: you cannot use the data pipeline account to authenticate
+# because it does not have access to the entire shared drive
+# therefore, we have to leave this as eval = FALSE in the vignette
+# because it's going to require live, interactive authentication
+
+googledrive::drive_auth()
+
+shared_folder_id <- Sys.getenv("GOOGLE_DRIVE_PIN_BOARD")
+
+mahery_board <- board_gdrive(
+  path = googledrive::as_id(shared_folder_id),
+  versioned = TRUE,
+  cache = NULL
+)
+
+glimpse(mahery_board)
+```
+
+Now that the board is set, we can demo "pinning" an object to the board:
+
+```{r eval=FALSE}
+mahery_board %>% 
+  pin_write(
+    x = mtcars, 
+    name = "mtcars", 
+    description = "A dataset of motor trend car road tests",
+    type = "csv"
+  )
+```
+
+We can see that `mtcars` is now available on the pinboard.
+
+![mtcars pinboard](mtcars_folder.png)
+
+It comes with a text file that describes the dataset, and a CSV file with the data:
+
+```
+file: mtcars.csv
+file_size: 1303
+pin_hash: 48c73eef04b242dd
+type: csv
+title: 'mtcars: a pinned 32 x 11 data frame'
+description: A dataset of motor trend car road tests
+tags: ~
+urls: ~
+created: 20250606T161202Z
+api_version: 1
+```
+
+So it's imperative to be descriptive so that the pinboard is useful for others.
+
+# Reporting with `pins` Non-Compliant Data
+
+`pins` works very well with serialized R objects and plain text data files, but it does not work well with
+other binary data formats such as images, PDFs, or other non-text files.
+To report these types of data, we'll have to configure our own `to_pinboard()` function, which will take the R
+object and convert it as necessary to a format that can simply be uploaded to the shared drive
+without the need for `pins`. This is useful for reporting figures, tables, and other non-text data,
+but of course loses the benefits of versioning and metadata that `pins` provides.
+
+For example, to share a figure, we'll have to save it as a PNG file and then upload it to the shared drive.
+
+```{r}
+shared_folder_id <- Sys.getenv("GOOGLE_DRIVE_PIN_BOARD")
+out_file <- file_temp("test_plot", ext = ".png")
+mtcars %>% 
+  ggplot(aes(x = wt, y = mpg)) +
+  geom_point() +
+  labs(title = "Motor Trend Car Road Tests",
+       x = "Weight (1000 lbs)",
+       y = "Miles per Gallon") -> p
+  
+ggsave(out_file, plot = p, width = 8, height = 6)
+
+drive_upload(
+  media = out_file,
+  path = googledrive::as_id(shared_folder_id),
+  name = "test_plot.png",
+  type = "image/png",
+  overwrite = TRUE
+)
+```
+
+This will upload the plot to the shared drive, but it won't have any metadata or versioning
+that `pins` offers.
+
+![Figure: test_plot.png](test_plot_in_folder.png)
+
+Now, let's create a general function that can be used to share reporting
+outputs either as pins or as files on the shared drive.
+
+# to_pinboard() Function
+    
+```{r development-to_pinboard}
+# You can prepare the code of the table_to_pinboard() function here
+```
+  
+```{r function-to_pinboard}
+#' Upload output to Google Drive pin board or shared folder
+#'
+#' This function standardizes how we publish outputs from the pipeline
+#' to a shared Google Drive folder. If the object is text-compatible
+#' (data frames, CSVs, R objects), it uses `pins::pin_write()` for
+#' versioning. If it's a binary file (e.g., image, PDF), it uses
+#' `googledrive::drive_upload()` instead.
+#'
+#' @param object The R object or file path to upload.
+#' @param name Name to save the object under (used for filename or pin name).
+#' @param description A human-readable description (used in pin metadata).
+#' @param board A `pins_board` object created by `board_gdrive()`.
+#' @param as_file If `TRUE`, upload directly to Drive; otherwise use `pins`.
+#' @param type File type (e.g. "csv", "rds", "png"). Only needed for `pins`.
+#'
+#' @return A message indicating success and upload details.
+#' @export
+to_pinboard <- function(object, name, description, board, as_file = FALSE, type = "rds") {
+  
+  if (as_file) {
+    # If object is a file path, upload directly
+    stopifnot(fs::file_exists(object))
+
+    googledrive::drive_upload(
+      media = object,
+      path = board$dribble$id,  # Note: board$path is the Google Drive folder ID
+      name = name,
+      type = mime::guess_type(object) %||% "application/octet-stream",
+      overwrite = TRUE
+    )
+    message(glue::glue("✅ Uploaded file '{name}' to Google Drive folder. Description:\n{description}"))
+  } else {
+    # Use pins (best for data frames, R objects, etc.)
+    board %>%
+      pins::pin_write(
+        x = object,
+        name = name,
+        description = description,
+        type = type
+      )
+    message(glue::glue("📌 Pinned object '{name}' to pin board"))
+  }
+}
+```
+
+```{r example-to_pinboard, eval=FALSE}
+# Example usage of to_pinboard function
+to_pinboard(
+  object = mtcars,
+  name = "mtcars",
+  description = "A dataset of motor trend car road tests",
+  board = mahery_board,
+  as_file = FALSE,
+  type = "csv"
+)
+```
+
+```{r tests-table_to_pinboard}
+test_that("table_to_pinboard works", {
+  expect_true(inherits(table_to_pinboard, "function")) 
+})
+```
+
+For interest's sake, here's the raw code for the function:
+
+```{r}
+MAHERYCohortHarmonization::to_pinboard
+```
+
+```{r development-inflate, eval=FALSE}
+# Run but keep eval=FALSE to avoid infinite loop
+# Execute in the console directly
+fusen::inflate(flat_file = "dev/flat_reporting_pins.Rmd", vignette_name = "Reporting with pins and Google Drive", check=FALSE, open_vignette=FALSE)
+```
+

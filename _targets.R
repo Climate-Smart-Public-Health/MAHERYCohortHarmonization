@@ -10,9 +10,22 @@ library(targets)
 # Set target options:
 tar_option_set(
   packages = c(
-    "tibble", "googledrive",      # Packages that your targets need for their tasks.
-    "MAHERYCohortHarmonization"   # This pipeline
-  )    
+    # Packages that your targets need for their tasks.
+    "tibble",
+    "googledrive",
+    "purrr",
+    "dplyr",
+    "lubridate",
+    "tidyr",
+    "here",
+    "readxl",
+    "readr",
+    "janitor",
+    "stringr",
+    "forcats",
+    "digest",
+    "MAHERYCohortHarmonization" # This pipeline
+  )
   # format = "qs", # Optionally set the default storage format. qs is fast.
   #
   # Pipelines that take a long time to run may benefit from
@@ -30,7 +43,7 @@ tar_option_set(
   # cluster, select a controller from the {crew.cluster} package.
   # For the cloud, see plugin packages like {crew.aws.batch}.
   # The following example is a controller for Sun Grid Engine (SGE).
-  # 
+  #
   #   controller = crew.cluster::crew_controller_sge(
   #     # Number of workers that the pipeline can scale up to:
   #     workers = 10,
@@ -53,9 +66,178 @@ tar_source()
 
 # Replace the target list below with your own:
 list(
+  # First, we check that we have secure access to google drive
   tar_target(
     name = secure_access_true,
     command = authenticate_google_drive()
-    # format = "qs" # Efficient storage for general data objects.
+  ),
+
+  # Next, we create the paths for the data files
+  tar_target(
+    name = data_directory_ready,
+    command = {
+      if (secure_access_true) {
+        create_datapaths()
+      }
+    }
+  ),
+
+  # set the freeze date; I'm setting this as April 1st 2025
+  tar_target(
+    name = freeze_date,
+    command = {
+      lubridate::mdy("05-13-2025")
+    }
+  ),
+
+  # now, let's get the files that we are interested in tracking
+  tar_target(
+    name = data_files,
+    command = {
+      mahery_input_files(freeze_date = freeze_date)
+    }
+  ),
+
+  # and we check whether the files have changed since the last time we ran the pipeline
+  tar_target(
+    name = gdrive_files_have_NOT_changed,
+    command = {
+      invisible(authenticate_google_drive())
+      any_changed <- data_files %>%
+        mutate(
+          # find the file in google drive
+          search_results = map(regex, ~ drive_find(.x, n_max = 1))
+        ) %>%
+        unnest(cols = c(search_results)) %>%
+
+        # use the ID to check if it has changed
+        rowwise() %>%
+        mutate(
+          has_changed = has_drive_file_changed(drive_resource, freeze_date)
+        ) %>%
+        ungroup() %>%
+
+        # evaluate all() of the has_changed column
+        summarise(any_changed = any(has_changed == TRUE)) %>%
+        pull(any_changed)
+
+      any_changed == FALSE
+    }
+  ),
+
+  # if the files have changed, we stop the pipeline
+  tar_target(
+    name = guard_pipeline_freeze,
+    command = {
+      if (!gdrive_files_have_NOT_changed) {
+        stop(
+          "🚨 Google Drive files have changed since the freeze date. Halting pipeline to prevent overwrite."
+        )
+      }
+      TRUE # Return TRUE if safe
+    }
+  ),
+
+  # now we can download the raw files
+  tar_target(
+    name = raw_files,
+    command = {
+      invisible(guard_pipeline_freeze)
+      auth_status <- authenticate_google_drive()
+
+      data_files %>%
+        mutate(
+          output_path = map(
+            regex,
+            download_to_local,
+            download_dir = here("data", "raw")
+          )
+        ) %>%
+        unnest(output_path)
+    }
+  ),
+
+  # each file
+  tar_target(
+    name = opensrp,
+    command = {
+      sheet_names <- excel_sheets(raw_files$output_path[1])
+      map(set_names(sheet_names), function(x) {
+        read_excel(raw_files$output_path[1], sheet = x)
+      })
+    }
+  ),
+  tar_target(
+    name = opensrp_dict,
+    command = {
+      sheet_names <- excel_sheets(raw_files$output_path[2])
+      map(set_names(sheet_names), function(x) {
+        read_excel(raw_files$output_path[2], sheet = x)
+      })
+    }
+  ),
+  tar_target(
+    name = dharma2019,
+    command = {
+      sheet_names <- excel_sheets(raw_files$output_path[4])
+      map(set_names(sheet_names), function(x) {
+        read_excel(raw_files$output_path[4], sheet = x)
+      })
+    },
+    error = "trim"
+  ),
+  tar_target(
+    name = dharma2020,
+    command = {
+      read_csv(raw_files$output_path[3])
+    },
+    error = "trim" # This is a workaround for the fact that the file is too large to read in one go; we'll remedy this in future
+  ),
+  tar_target(
+    name = cohort_2018,
+    command = {
+      open_census <- opensrp$`Open census`
+      preprocess_opensrp2018(open_census)
+    }
+  ),
+  tar_target(
+    name = cohort_2018_households,
+    command = {
+      preprocess_2018_household_heads(opensrp, cohort_2018)
+    }
+  ),
+  # as an additional step, we're removing the identifying column
+  # original_id from the datasets and only using our "salted" IDs in
+  # any outputs
+  tar_target(
+    name = cohort_2018_deid,
+    command = {
+      cohort_2018 %>%
+        select(-original_id)
+    }
+  ),
+  tar_target(
+    name = cohort_2018_households_deid,
+    command = {
+      cohort_2018_households %>%
+        select(-original_id)
+    }
+  ),
+  # healthcare data for the 2018 cohort
+  tar_target(
+    name = cohort_2018_healthcare,
+    command = {
+      open_census <- opensrp$`Open census`
+      preprocess_2018_health(open_census, cohort_2018_deid)
+    }
+  ),
+
+  # now we can preprocess the Dharma 2019 cohort
+  tar_target(
+    name = cohort_2019,
+    command = {
+      preprocess_2019(dharma2019)
+    }
   )
+
 )
