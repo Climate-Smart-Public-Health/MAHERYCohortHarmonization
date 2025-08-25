@@ -88,6 +88,25 @@ flat_preprocess_2019.Rmd:
     overwrite: ask
     clean: ask
     codecov: false
+flat_preprocess_2019_health.Rmd:
+  path: dev/flat_preprocess_2019_health.Rmd
+  state: active
+  R:
+  - R/preprocess_2019_health.R
+  - R/preprocess_rdp_health_subset.R
+  tests:
+  - tests/testthat/test-preprocess_rdp_health_subset.R
+  - tests/testthat/test-preprocess_2019_health.R
+  vignettes: vignettes/preprocessing-2019-health-status.Rmd
+  inflate:
+    flat_file: dev/flat_preprocess_2019_health.Rmd
+    vignette_name: Preprocessing 2019 Health Status
+    open_vignette: false
+    check: false
+    document: true
+    overwrite: ask
+    clean: ask
+    codecov: false
 flat_reporting_pins.Rmd:
   path: dev/flat_reporting_pins.Rmd
   state: active

@@ -221,7 +221,28 @@ malagasy_diagnosis_lookup_table <- tibble::tribble(
   "infected_wound", "skin_soft_tissue_infection", "L00–L08", "Infections of the skin and subcutaneous tissue",
   "no_pregnancy", "pregnancy_related", "O00–O99", "Pregnancy, childbirth and the puerperium",
   "cancer", "neoplasm_unspecified", "C00–D48", "Neoplasms",
-  "other", "other_unknown", "R00–R99", "Symptoms, signs and abnormal clinical and laboratory findings, not elsewhere classified"
+  "other", "other_unknown", "R00–R99", "Symptoms, signs and abnormal clinical and laboratory findings, not elsewhere classified",
+  "tazo_moko_tdr", "malaria_rdt_positive", "B50–B64", "Protozoal diseases",
+  "pneumonia", "pneumonia", "J12–J18", "Pneumonia",
+  "raboka_tobera", "cough_or_tuberculosis", "A15–A19", "Tuberculosis",
+  "vih", "hiv", "B20–B24", "Human immunodeficiency virus [HIV] disease",
+  "kisoso_kitrotro", "measles_or_whooping_cough", "B05–B06", "Measles and Rubella",
+  "fery_misy_nana", "abscess_needs_antibiotic_or_amputation", "L00–L08", "Infections of the skin and subcutaneous tissue",
+  "fahatsetsenana_loha", "stroke", "I60–I69", "Cerebrovascular diseases",
+  "fanintona", "seizure", "G40–G41", "Epilepsy and status epilepticus",
+  "olana_fitomboana", "growth_problem", "E00–E35", "Disorders of endocrine glands (includes growth disorders)",
+  "fahajambana", "blindness", "H54", "Blindness and low vision",
+  "olana_fandrenesana", "hearing_problem_eardrum", "H60–H95", "Diseases of the ear and mastoid process",
+  "tosi_dra_ambony", "hypertension", "I10–I15", "Hypertensive diseases",
+  "kansera", "cancer", "C00–D48", "Neoplasms",
+  "olana_vohoka_na_kibo", "pregnancy_complication", "O00–O99", "Pregnancy, childbirth and the puerperium",
+  "bilarziozy", "bilharzia", "B65", "Schistosomiasis (Bilharziasis)",
+  "kakana_tsinay", "intestinal_worms", "B65–B83", "Helminthiases",
+  "solopiso_alt", "hernia", "K40–K46", "Hernia",
+  "aretina_mahavyavy", "sexually_transmitted_infection", "A50–A64", "Infections with a predominantly sexual mode of transmission",
+  "tsy_misy_aretina", "no_illness", "Z00–Z99", "Factors influencing health status and contact with health services",
+  "hafa", "other", "R00–R99", "Symptoms, signs and abnormal clinical and laboratory findings, not elsewhere classified",
+  "tsy_tadidy", "not_remembered", "R69", "Illness, unspecified"
 )
 # Save to package
 usethis::use_data(malagasy_diagnosis_lookup_table, overwrite = TRUE)

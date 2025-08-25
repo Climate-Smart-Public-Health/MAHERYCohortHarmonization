@@ -238,6 +238,13 @@ list(
     command = {
       preprocess_2019(dharma2019)
     }
-  )
+  ),
 
+  # preprocess the health data for the 2019 cohort for the RDP paper
+  tar_target(
+    name = cohort_2019_health_RDP,
+    command = {
+      preprocess_rdp_health_subset(dharma2019)
+    }
+  )
 )
