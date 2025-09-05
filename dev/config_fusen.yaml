@@ -93,9 +93,11 @@ flat_preprocess_2019_health.Rmd:
   state: active
   R:
   - R/preprocess_2019_health.R
-  - R/preprocess_rdp_health_subset.R
+  - R/preprocess_rdp_health_subset2019.R
+  - R/preprocess_rdp_health_subset2020.R
   tests:
-  - tests/testthat/test-preprocess_rdp_health_subset.R
+  - tests/testthat/test-preprocess_rdp_health_subset2019.R
+  - tests/testthat/test-preprocess_rdp_health_subset2020.R
   - tests/testthat/test-preprocess_2019_health.R
   vignettes: vignettes/preprocessing-2019-health-status.Rmd
   inflate:

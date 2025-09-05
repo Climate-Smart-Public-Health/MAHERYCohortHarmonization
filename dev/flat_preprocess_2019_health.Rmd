@@ -548,7 +548,7 @@ preprocess_rdp_health_subset2019 <- function(dharma2019){
       ) %>% as.factor()) -> cohort_2019_anthro_
       
     cohort_2019_anthro_ %>%
-      mutate(uuid_clean = fact_1_id) %>%
+      mutate(uuid_clean = as.character(fact_1_id)) %>%
       group_by(uuid_clean) %>%
       arrange(uuid_clean, date_clean) %>%
       mutate(followup_number_clean = row_number()) %>%
@@ -742,9 +742,7 @@ names_2020[names_2020 %in% names_2019]
 # You can prepare the code of the preprocess_rdp_health_subset2020() function here
 ```
 
-```{r}
-tar_load(dharma2020, store = here::here("_targets"))
-```
+
 ```{r function-preprocess_rdp_health_subset2020}
 #' Title
 #' 
@@ -753,46 +751,44 @@ tar_load(dharma2020, store = here::here("_targets"))
 #' @return
 #' 
 #' @export
-preprocess_rdp_health_subset2020 <- function(dharma2020, dharma_2019_dict){
+preprocess_rdp_health_subset2020 <- function(dharma2020, dharma2019_dict){
     
     cohort_2020_anthro <- dharma2020
     
-    dharma2019_dict <- dharma2019$`Data Dictionary`
     dharma2019_dict %>%
       fill(column_name, level, .direction = "down") %>%
       fill(level, .direction = "down")  -> dharma2019_dict
     level_2_dict <- dharma2019_dict %>%
       filter(level == 2)
 
-    cohort_2019_anthro %>% 
-      fill(fact_0_id, fact_1_id, .direction = "down") %>%
+    cohort_2020_anthro %>% 
+      # fill(fact_0_id, fact_1_id, .direction = "down") %>%
       filter(!deleted) %>%
-      filter(L2_q38_date_followup != ".") %>%
-      mutate(date_clean = L2_q38_date_followup %>%
+      filter(L0_q38_date_followup != ".") %>%
+      mutate(date_clean = L0_q38_date_followup %>%
         na_if("\\.") %>% 
-        as.numeric() %>%
-        convert_to_date()) -> cohort_2019_anthro_
+        dmy_hms()) -> cohort_2020_anthro_
 
-    cohort_2019_anthro_ %>%
-      filter(L2_q47_participate == "Yes") %>%
-      filter(L2_q41_alive == "Yes") %>%
-      filter(L2_q46_present == "Yes") -> cohort_2019_anthro_
+    cohort_2020_anthro_ %>%
+      filter(L0_q47_participate == "Yes") %>%
+      filter(L0_q41_alive == "Yes") %>%
+      filter(L0_q46_present == "Yes") -> cohort_2020_anthro_
     
-    cohort_2019_anthro_ %>%
+    cohort_2020_anthro_ %>%
       mutate(recent_birth_clean = case_when(
-        L2_q196_live_birth == "Yes" ~ TRUE,
-        L2_q196_live_birth == "No" ~ FALSE,
-        L2_q196_live_birth == "." ~ NA,
+        L0_q196_live_birth == "Yes" ~ TRUE,
+        L0_q196_live_birth == "No" ~ FALSE,
+        L0_q196_live_birth == "." ~ NA,
         TRUE ~ NA
-      ) %>% as.factor()) -> cohort_2019_anthro_
+      ) %>% as.factor()) -> cohort_2020_anthro_
 
-    cohort_2019_anthro_ %>%
+    cohort_2020_anthro_ %>%
       mutate(pregnant_now_clean = case_when(
-        L2_q200_pregnant_now == "Yes" ~ TRUE,
-        L2_q200_pregnant_now == "No" ~ FALSE,
-        L2_q200_pregnant_now == "." ~ NA,
+        L0_q200_pregnant_now == "Yes" ~ TRUE,
+        L0_q200_pregnant_now == "No" ~ FALSE,
+        L0_q200_pregnant_now == "." ~ NA,
         TRUE ~ NA
-      ) %>% as.factor()) -> cohort_2019_anthro_
+      ) %>% as.factor()) -> cohort_2020_anthro_
 
     diagnoses <- level_2_dict %>%
       
@@ -803,56 +799,70 @@ preprocess_rdp_health_subset2020 <- function(dharma2020, dharma_2019_dict){
       pull(diagnosis_english) %>%
       str_c("diag_", ., "_clean")
 
-    ind_diagnoses <- names(cohort_2019_anthro_) %>%
+    ind_diagnoses <- names(cohort_2020_anthro_) %>%
       str_detect("q62_diagnostic") %>%
       which()
 
-    names(cohort_2019_anthro_)[ind_diagnoses] <- diagnoses
+    if(length(ind_diagnoses) != length(diagnoses)){
+      stop("number of diagnoses does not match number of diagnosis columns in 2020 data")
+    }
 
-    cohort_2019_anthro_ %>%
+    names(cohort_2020_anthro_)[ind_diagnoses] <- diagnoses
+
+    cohort_2020_anthro_ %>%
 
       # malaria
       mutate(diag_malaria_rdt_positive_clean = case_when(
         diag_malaria_rdt_positive_clean == TRUE ~ TRUE,
-        L2_q227_rdt_result == "Positive" ~ TRUE,
-        L2_q227_rdt_result == "Negative" ~ FALSE,
+        L0_q227_rdt_result == "Positive" ~ TRUE,
+        L0_q227_rdt_result == "Negative" ~ FALSE,
         TRUE ~ NA
       ) %>% as.factor()) %>%
 
       #diarrhea
       mutate(symptom15dys_diarrhea_clean = case_when(
-        L2_q94_diarrhea_now_15days == "Yes" ~ TRUE,
-        L2_q94_diarrhea_now_15days == "No" ~ FALSE,
-        L2_q94_diarrhea_now_15days == "." ~ NA,
+        L0_q94_diarrhea_now_15days == "Yes" ~ TRUE,
+        L0_q94_diarrhea_now_15days == "No" ~ FALSE,
+        L0_q94_diarrhea_now_15days == "." ~ NA,
         TRUE ~ NA
       ) %>% as.factor()) %>%
 
       #fever
       mutate(symptom15dys_fever_clean = case_when(
-        L2_q117_fever_now_15days == "Yes" ~ TRUE,
-        L2_q117_fever_now_15days == "No" ~ FALSE,
-        L2_q117_fever_now_15days == "." ~ NA,
+        L0_q117_fever_now_15days == "Yes" ~ TRUE,
+        L0_q117_fever_now_15days == "No" ~ FALSE,
+        L0_q117_fever_now_15days == "." ~ NA,
         TRUE ~ NA
       ) %>% as.factor()) %>%
 
       # emesis
       mutate(symptom15dys_vomit_clean = case_when(
-        L2_q137_vomit_now_15days == "Yes" ~ TRUE,
-        L2_q137_vomit_now_15days == "No" ~ FALSE,
-        L2_q137_vomit_now_15days == "." ~ NA,
+        L0_q137_vomit_now_15days == "Yes" ~ TRUE,
+        L0_q137_vomit_now_15days == "No" ~ FALSE,
+        L0_q137_vomit_now_15days == "." ~ NA,
         TRUE ~ NA
       ) %>% as.factor()) %>%
 
       # headache
       mutate(symptom15dys_headache_clean = case_when(
-        L2_q236_headache_15days == "Yes" ~ TRUE,
-        L2_q236_headache_15days == "No" ~ FALSE,
-        L2_q236_headache_15days == "." ~ NA,
+        L0_q236_headache_15days == "Yes" ~ TRUE,
+        L0_q236_headache_15days == "No" ~ FALSE,
+        L0_q236_headache_15days == "." ~ NA,
         TRUE ~ NA
-      ) %>% as.factor()) -> cohort_2019_anthro_
+      ) %>% as.factor()) -> cohort_2020_anthro_
       
-    cohort_2019_anthro_ %>%
-      mutate(uuid_clean = fact_1_id) %>%
+    cohort_2020_anthro_ %>%
+      filter(!deleted) %>%
+      filter(L0_q813_who_are_you_following_up_with_individual_id != ".") %>%
+      filter(L0_q38_date_followup != ".") %>%
+      mutate(uuid_clean = str_c(
+        L0_q813_who_are_you_following_up_with_individual_id, 
+        L0_q856_unique_id_if_unable_to_select_from_dropdown_above, 
+        sep = "_")) %>%
+      filter(uuid_clean != "._") %>%
+      rowwise() %>%
+      mutate(uuid_clean = generate_uid(salt=Sys.getenv("UUID_SALT"), uuid_clean)) %>%
+      ungroup() %>%
       group_by(uuid_clean) %>%
       arrange(uuid_clean, date_clean) %>%
       mutate(followup_number_clean = row_number()) %>%
@@ -862,15 +872,16 @@ preprocess_rdp_health_subset2020 <- function(dharma2020, dharma_2019_dict){
         is.na(.) ~ NA,
         TRUE ~ TRUE
       ) %>% as.factor())) %>%
-      rename(village_clean = L2_q791_enumerator) %>%
+      rename(village_clean = L0_q791_enumerator) %>%
       select(contains('clean')) %>%
-      select(-contains("L2")) %>%
+      select(-contains("L0")) %>%
       select(uuid_clean, followup_number_clean, date_clean, village_clean, everything())
 }
 ```
   
 ```{r example-preprocess_rdp_health_subset2020}
-preprocess_rdp_health_subset2020()
+preprocess_rdp_health_subset2020(dharma2020, dharma2019$`Data Dictionary`) %>%
+  skim()
 ```
   
 ```{r tests-preprocess_rdp_health_subset2020}

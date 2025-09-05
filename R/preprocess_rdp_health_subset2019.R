@@ -8,12 +8,14 @@
 #' @return
 #' 
 #' @export
-preprocess_rdp_health_subset <- function(dharma2019){
+preprocess_rdp_health_subset2019 <- function(dharma2019){
     
     cohort_2019_anthro <- dharma2019$`Level 2 Named`
     dharma2019_dict <- dharma2019$`Data Dictionary`
-    level_2_dict <- dharma2019_dict %>%
+    dharma2019_dict %>%
       fill(column_name, level, .direction = "down") %>%
+      fill(level, .direction = "down")  -> dharma2019_dict
+    level_2_dict <- dharma2019_dict %>%
       filter(level == 2)
 
     cohort_2019_anthro %>% 
@@ -104,7 +106,7 @@ preprocess_rdp_health_subset <- function(dharma2019){
       ) %>% as.factor()) -> cohort_2019_anthro_
       
     cohort_2019_anthro_ %>%
-      mutate(uuid_clean = fact_1_id) %>%
+      mutate(uuid_clean = as.character(fact_1_id)) %>%
       group_by(uuid_clean) %>%
       arrange(uuid_clean, date_clean) %>%
       mutate(followup_number_clean = row_number()) %>%
