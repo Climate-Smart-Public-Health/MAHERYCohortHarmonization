@@ -244,7 +244,16 @@ list(
   tar_target(
     name = cohort_2019_health_RDP,
     command = {
-      preprocess_rdp_health_subset(dharma2019)
-    }
-  )
+      preprocess_rdp_health_subset2019(dharma2019)
+    },
+    description = "Preprocess the health subset of the 2019 cohort for the RDP paper. #googledrive"
+  ),
+
+  tar_target(
+    name = cohort_2020_health_RDP,
+    command = {
+      preprocess_rdp_health_subset2020(dharma2020, cohort_2019_health_RDP)
+    },
+    description = "Preprocess the health subset of the 2020 cohort for the RDP paper. #googledrive"
+  ),
 )

@@ -34,7 +34,6 @@ Suggests:
     ggplot2,
     knitr,
     pkgload,
-    readr,
     rmarkdown,
     skimr,
     targets,

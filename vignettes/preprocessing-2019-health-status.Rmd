@@ -152,16 +152,15 @@ names(cohort_2019_health_)[ind_diagnoses] <- diagnoses
 
 
 ```{r}
-cohort_2019_health_ %>%
-  mutate(across(contains("diag_"), ~ case_when(
-    . == "." ~ NA,
-    . == NA ~ NA,
-    TRUE ~ TRUE
-  ) %>% as.factor())) -> cohort_2019_health_
+# cohort_2019_health_ %>%
+#   mutate(across(contains("diag_"), ~ case_when(
+#     . == "." ~ NA,
+#     . == NA ~ NA
+#   ) %>% as.factor())) -> cohort_2019_health_
   
 cohort_2019_health_%>%
   select(contains("diag_")) %>%
-  summary()
+  glimpse()
 ```
 
 
@@ -370,6 +369,27 @@ names(cohort_2019_anthro_)[ind_diagnoses] <- diagnoses
 ```
 
 
+Here's a specific diagnosis we want to single out: Malaria (called RDT in Malagasy):
+```{r}
+cohort_2019_anthro_ %>%
+  select(L2_q226_rdt_test, L2_q227_rdt_result) %>%
+  table()
+```
+
+
+We can replace whenever we have malaria diagnosis with
+the results of the RDT test:
+```{r}
+cohort_2019_anthro_ %>%
+  mutate(diag_malaria_rdt_positive_clean = case_when(
+    diag_malaria_rdt_positive_clean == TRUE ~ TRUE,
+    L2_q227_rdt_result == "Positive" ~ TRUE,
+    L2_q227_rdt_result == "Negative" ~ FALSE,
+    TRUE ~ NA
+  ) %>% as.factor()) -> cohort_2019_anthro_
+```
+
+
 ### Symptoms
 
 We can process the set of specific symptoms next:
@@ -423,14 +443,15 @@ cohort_2019_anthro_ %>%
   ungroup() %>%
   mutate(across(contains("diag_"), ~ case_when(
     . == "." ~ NA,
-    . == NA ~ NA,
+    is.na(.) ~ NA,
     TRUE ~ TRUE
   ) %>% as.factor())) %>%
   rename(village_clean = L2_q791_enumerator) %>%
   select(contains('clean')) %>%
   select(-contains("L2")) %>%
-  select(uuid_clean, followup_number_clean, date_clean, village_clean, everything()) %>%
-  readr::write_csv(here("sandbox", "cohort_2019_health_followups.csv"))
+  select(uuid_clean, followup_number_clean, date_clean, village_clean, everything()) -> x
+
+skimr::skim(x)
 
 ```
 
@@ -441,6 +462,7 @@ This function will preprocess a subset of the RDP health data for 2019.
   
 
   
+
   
 
 # preprocess_2019_health

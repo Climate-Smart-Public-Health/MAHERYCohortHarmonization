@@ -13,6 +13,7 @@ preprocess_rdp_health_subset <- function(dharma2019){
     cohort_2019_anthro <- dharma2019$`Level 2 Named`
     dharma2019_dict <- dharma2019$`Data Dictionary`
     level_2_dict <- dharma2019_dict %>%
+      fill(column_name, level, .direction = "down") %>%
       filter(level == 2)
 
     cohort_2019_anthro %>% 
@@ -46,7 +47,7 @@ preprocess_rdp_health_subset <- function(dharma2019){
       ) %>% as.factor()) -> cohort_2019_anthro_
 
     diagnoses <- level_2_dict %>%
-      fill(column_name, .direction = "down") %>%
+      
       filter(str_detect(column_name, "q62_diagnostic")) %>%
       mutate(raw = make_clean_names(choice_name)) %>%
       select(raw) %>%
@@ -61,6 +62,14 @@ preprocess_rdp_health_subset <- function(dharma2019){
     names(cohort_2019_anthro_)[ind_diagnoses] <- diagnoses
 
     cohort_2019_anthro_ %>%
+
+      # malaria
+      mutate(diag_malaria_rdt_positive_clean = case_when(
+        diag_malaria_rdt_positive_clean == TRUE ~ TRUE,
+        L2_q227_rdt_result == "Positive" ~ TRUE,
+        L2_q227_rdt_result == "Negative" ~ FALSE,
+        TRUE ~ NA
+      ) %>% as.factor()) %>%
 
       #diarrhea
       mutate(symptom15dys_diarrhea_clean = case_when(
@@ -102,7 +111,7 @@ preprocess_rdp_health_subset <- function(dharma2019){
       ungroup() %>%
       mutate(across(contains("diag_"), ~ case_when(
         . == "." ~ NA,
-        . == NA ~ NA,
+        is.na(.) ~ NA,
         TRUE ~ TRUE
       ) %>% as.factor())) %>%
       rename(village_clean = L2_q791_enumerator) %>%
