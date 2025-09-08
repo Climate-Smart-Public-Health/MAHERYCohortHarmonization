@@ -6,6 +6,8 @@ articles:
   OutputTables: OutputTables.html
   preprocessing-2018-health-status: preprocessing-2018-health-status.html
   preprocessing-2018-household-heads: preprocessing-2018-household-heads.html
+  preprocessing-2019-health-status: preprocessing-2019-health-status.html
+  preprocessing-dharma-2019-cohort: preprocessing-dharma-2019-cohort.html
   reporting-with-pins-and-google-drive: reporting-with-pins-and-google-drive.html
   tracking-input-data: tracking-input-data.html
-last_built: 2025-06-11T23:51Z
+last_built: 2025-09-05T15:55Z

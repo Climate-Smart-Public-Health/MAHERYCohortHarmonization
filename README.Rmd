@@ -19,6 +19,8 @@ knitr::opts_chunk$set(
 <!-- badges: start -->
 <!-- badges: end -->
 
+> CHatGPT incoming...
+
 The Madagascar Health and Environmental Research (MAHERY) cohort datasets provide a detailed and interdisciplinary understanding of the relationships between environmental changes, resource use, and human health in Madagascar. These datasets encompass multiple research initiatives, including the Northeast, Antongil, HIARA, and cross-sectional studies, each addressing unique aspects of health and environmental interactions.
 
 - **Northeast Dataset**: This dataset focuses on communities near Maroantsetra in northeastern Madagascar, where local populations heavily rely on wild foods for nutrition. The study examines the impact of deforestation, biodiversity loss, and hunting on dietary intake, nutritional status, and health outcomes. It includes data on dietary diversity, disease metrics, and environmental resource use[2][3].
@@ -44,6 +46,19 @@ Sources
 
 This package establishes a pipeline that harmonizes the MAHERY cohort data across disparate sources and produces a dataset that defines the MAHERY Cohort for future studies.
 
+> With that in mind, thanks to ChatGPT for the initial draft of this README. Let's revise our
+understanding of the MAHERY cohort:
+
+Over the years of C Golden's research in Madagascar, multiple datasets have been collected to understand the relationships between environmental
+changes, resource use, nutrition consumption, and human health. These datasets are vast and duplicitous,
+and the hope is that many PhD students and researchers will use these data to answer important questions about
+the relationships between environment and health. To make this possible, this repository establishes a pipeline that harmonizes the separate MAHERY 
+cohorts' data across disparate sources and produces a dataset that defines "the MAHERY Cohort" for future studies.
+
+The hope is that this dataset can help answer questions that help the scientific community
+understant the relationship between global climat change challenges, and local changes to
+health, nutrition, and wellbeing.
+
 ## Approach
 
 We will use the following steps to harmonize the MAHERY cohort data:
@@ -58,11 +73,7 @@ We will use the following steps to harmonize the MAHERY cohort data:
 
 ## Installation
 
-You can install the development version of MAHERYCohortHarmonization like so:
-
-``` r
-# FILL THIS IN! HOW CAN PEOPLE INSTALL YOUR DEV PACKAGE?
-```
+TBD...
 
 ## Pipeline
 

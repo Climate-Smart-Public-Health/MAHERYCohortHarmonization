@@ -9,6 +9,8 @@
 <url><loc>/articles/opensrp-cohort-2018-preprocessing.html</loc></url>
 <url><loc>/articles/preprocessing-2018-health-status.html</loc></url>
 <url><loc>/articles/preprocessing-2018-household-heads.html</loc></url>
+<url><loc>/articles/preprocessing-2019-health-status.html</loc></url>
+<url><loc>/articles/preprocessing-dharma-2019-cohort.html</loc></url>
 <url><loc>/articles/reporting-with-pins-and-google-drive.html</loc></url>
 <url><loc>/articles/tracking-input-data.html</loc></url>
 <url><loc>/authors.html</loc></url>
@@ -19,6 +21,8 @@
 <url><loc>/reference/calculate_age_group.html</loc></url>
 <url><loc>/reference/clean_2018_pregnancy.html</loc></url>
 <url><loc>/reference/clean_2018_vaccinations.html</loc></url>
+<url><loc>/reference/clean_2019_profession.html</loc></url>
+<url><loc>/reference/clean_dharma_names.html</loc></url>
 <url><loc>/reference/clean_opencensus_dob.html</loc></url>
 <url><loc>/reference/create_datapaths.html</loc></url>
 <url><loc>/reference/create_health_diagnoses.html</loc></url>
@@ -37,7 +41,11 @@
 <url><loc>/reference/preprocess_2018.html</loc></url>
 <url><loc>/reference/preprocess_2018_health.html</loc></url>
 <url><loc>/reference/preprocess_2018_household_heads.html</loc></url>
+<url><loc>/reference/preprocess_2019.html</loc></url>
+<url><loc>/reference/preprocess_2019_health.html</loc></url>
 <url><loc>/reference/preprocess_opensrp2018.html</loc></url>
+<url><loc>/reference/preprocess_rdp_health_subset2019.html</loc></url>
+<url><loc>/reference/preprocess_rdp_health_subset2020.html</loc></url>
 <url><loc>/reference/process_deformities.html</loc></url>
 <url><loc>/reference/recode_opensrp_education.html</loc></url>
 <url><loc>/reference/sub_median.html</loc></url>
