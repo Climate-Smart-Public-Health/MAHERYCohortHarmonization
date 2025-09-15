@@ -31,21 +31,17 @@ preprocess_2018_health <- function(open_census, cohort_2018_deid, diagnosis_look
         # values taken from the table() of the prior_surgeries column
         is.na(prior_surgeries)                                              ~ NA_character_,
         prior_surgeries == "&"                                              ~ NA_character_,
-        str_detect(prior_surgeries, "Niterak.*nididiana|Niterak nodidiana") ~ "Cesarean section",
-        str_detect(prior_surgeries, "apandisite")                           ~ "Appendectomy",
-        str_detect(prior_surgeries, "Voakiso.*tanan")                       ~ "Injury - hand trauma",
-        str_detect(prior_surgeries, "famaky.*tongotra|lasety.*tongotra")    ~ "Injury - foot laceration",
-        str_detect(prior_surgeries, "kakazo.*kirandra")                     ~ "Injury - ankle trauma",
-        str_detect(prior_surgeries, "omb.*kibo")                            ~ "Injury - animal trauma (zebu)",
+        str_detect(prior_surgeries, "Niterak.*nididiana|Niterak nodidiana") ~ "cesarean_section",
+        str_detect(prior_surgeries, "apandisite")                           ~ "appendectomy",
+        str_detect(prior_surgeries, "Voakiso.*tanan")                       ~ "injury_involving_stitches_hand",
+        str_detect(prior_surgeries, "famaky.*tongotra|lasety.*tongotra")    ~ "injury_involving_stitches_foot",
+        str_detect(prior_surgeries, "kakazo.*kirandra")                     ~ "injury_involving_stitches_shin",
+        str_detect(prior_surgeries, "omb.*kibo")                            ~ "injury_involving_stitches_belly",
+        
         TRUE ~ "Other / Unknown"
-      ),
-      deformities_clean = case_when(
-        is.na(visual_health_deformities)              ~ NA_character_,
-        visual_health_deformities == "Deformities na" ~ NA_character_,
-        !is.na(visual_health_deformities) & !is.na(other_visual_health_deformities) ~ str_c(visual_health_deformities, ", ", other_visual_health_deformities),
-        TRUE ~ visual_health_deformities
       )
     ) %>%
+    process_deformities() %>%
     select(contains("clean")) %>%
     rename_with(
       ~ str_replace(., "_clean$", ""),

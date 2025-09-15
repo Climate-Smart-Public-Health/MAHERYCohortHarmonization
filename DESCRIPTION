@@ -25,7 +25,6 @@ Imports:
     pins,
     purrr,
     rlang,
-    stats,
     stringr,
     tibble
 Suggests: 

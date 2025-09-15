@@ -1,0 +1,66 @@
+---
+title: "flat_preprocess_2019_health_rdp.Rmd empty"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r development, include=FALSE}
+library(testthat)
+```
+
+```{r development-load}
+library(here)
+library(targets)
+tar_load(dharma2019, store = here::here("_targets"))
+
+# Load already included functions if relevant
+pkgload::load_all(export_all = FALSE)
+
+library(janitor)
+library(dplyr)
+library(tidyr)
+library(lubridate)
+library(skimr)
+library(forcats)
+library(stringr)
+library(ggplot2)
+```
+
+In this notebook, we will prepare the 2019 health data for the RDP analysis.
+
+# preprocess_2019_health_rdp
+
+```{r development-preprocess_2019_health_rdp}
+# Prepare the code of your function here
+```
+
+```{r function-preprocess_2019_health_rdp}
+#' preprocess_2019_health_rdp Title
+#'
+#' @return 1
+#' @export
+#'
+#' @examples
+preprocess_2019_health_rdp <- function() {
+  1
+}
+```
+
+```{r examples-preprocess_2019_health_rdp}
+preprocess_2019_health_rdp()
+```
+
+```{r tests-preprocess_2019_health_rdp}
+test_that("preprocess_2019_health_rdp works", {
+  expect_true(inherits(preprocess_2019_health_rdp, "function"))
+})
+```
+
+
+```{r development-inflate, eval=FALSE}
+# Run but keep eval=FALSE to avoid infinite loop
+# Execute in the console directly
+fusen::inflate(flat_file = "dev/flat_preprocess_2019_health_rdp.Rmd", vignette_name = "Go further")
+```
+

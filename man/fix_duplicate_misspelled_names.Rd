@@ -2,30 +2,45 @@
 % Please edit documentation in R/fix_duplicate_misspelled_names.R
 \name{fix_duplicate_misspelled_names}
 \alias{fix_duplicate_misspelled_names}
-\title{Add ordinal suffixes to repeated household head names by date}
+\title{Fix known misspellings and assign corrected household head names}
 \usage{
 fix_duplicate_misspelled_names(df, name_col = name, hh_col = hh_head_name)
 }
 \arguments{
-\item{df}{A data frame containing at least the household name and date columns.}
+\item{df}{A data frame containing at least a name column, a household head name column,
+and an \code{id} column used for conditional overrides.}
 
-\item{name_col}{A column in \code{df} that contains the household head names. Defaults to \code{hh_head_name_clean}.}
+\item{name_col}{The unquoted name of the column in \code{df} containing the original (possibly misspelled) names.
+Defaults to \code{name}.}
 
-\item{target_name}{A character string specifying the exact name to deduplicate and label (e.g., "be zela").}
-
-\item{date_col}{A column in \code{df} that contains an identifier for the recorded date. Defaults to \code{submission_date}.}
+\item{hh_col}{The unquoted name of the column in \code{df} containing the household head names.
+Defaults to \code{hh_head_name}.}
 }
 \value{
-A data frame with the specified name deduplicated by date, using ordinal suffixes.
-Other names remain unchanged.
+A data frame with standardized name values in \code{name_col}, and selected rows in \code{hh_col}
+updated based on predefined \code{id} patterns. A new column is not created; the original columns are modified.
 }
 \description{
-This function modifies a data frame by appending Roman numeral suffixes
-(e.g., " ii", " iii") to a specific household head name that appears more than once.
-The suffixes are added in chronological order based on a date column, beginning with
-the second occurrence. Only the specified name is modified; all others remain unchanged.
+This function applies hand-curated corrections to a set of known misspelled names in a
+data frame. It replaces values in the specified \code{name_col} with standardized spellings
+using a hard-coded correction map. In addition, it conditionally renames household heads
+in both the \code{name_col} and \code{hh_col} columns for specific known ID patterns.
+}
+\details{
+\itemize{
+\item Known misspellings are replaced based on a hardcoded correction map.
+\item Specific IDs (e.g., those starting with \code{"A3dd6eda"} and \code{"48149ba9"}) are assigned known corrected names
+directly in both \code{name_col} and \code{hh_col}.
+}
 }
 \examples{
+df <- tibble::tibble(
+  id = c("A3dd6eda123", "48149ba9111", "otherid"),
+  name = c("eddy", "unknown", "juliette"),
+  hh_head_name = c("eddy", "unknown", "juliette")
+)
+fix_duplicate_misspelled_names(df)
+
 open_census_ \%>\%
   fix_duplicate_misspelled_names(name_col = name_family_member_clean, 
                                  hh_col = hh_head_name_clean) -> open_census_

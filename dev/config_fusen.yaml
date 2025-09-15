@@ -13,25 +13,6 @@ flat_cohort_household_heads.Rmd:
     overwrite: ask
     clean: ask
     codecov: false
-flat_full.Rmd:
-  path: dev/flat_full.Rmd
-  state: deprecated
-  R:
-  - R/my_median.R
-  - R/my_other_median.R
-  tests:
-  - tests/testthat/test-my_median.R
-  - tests/testthat/test-my_other_median.R
-  vignettes: vignettes/get-started.Rmd
-  inflate:
-    flat_file: dev/flat_full.Rmd
-    vignette_name: Get started
-    open_vignette: false
-    check: false
-    document: true
-    overwrite: ask
-    clean: ask
-    codecov: false
 flat_preprocess_2018.Rmd:
   path: dev/flat_preprocess_2018.Rmd
   state: active
@@ -68,16 +49,60 @@ flat_preprocess_2018_health.Rmd:
   - R/clean_2018_vaccinations.R
   - R/create_health_diagnoses.R
   - R/preprocess_2018_health.R
+  - R/process_deformities.R
   - R/health-care-access-diagnoses.R
   tests:
   - tests/testthat/test-create_health_diagnoses.R
   - tests/testthat/test-clean_2018_vaccinations.R
   - tests/testthat/test-clean_2018_pregnancy.R
+  - tests/testthat/test-process_deformities.R
   - tests/testthat/test-preprocess_2018_health.R
   vignettes: vignettes/preprocessing-2018-health-status.Rmd
   inflate:
     flat_file: dev/flat_preprocess_2018_health.Rmd
     vignette_name: Preprocessing 2018 Health Status
+    open_vignette: false
+    check: false
+    document: true
+    overwrite: ask
+    clean: ask
+    codecov: false
+flat_preprocess_2019.Rmd:
+  path: dev/flat_preprocess_2019.Rmd
+  state: active
+  R:
+  - R/clean_dharma_names.R
+  - R/clean_2019_profession.R
+  - R/preprocess_2019.R
+  tests:
+  - tests/testthat/test-clean_dharma_names.R
+  - tests/testthat/test-clean_2019_profession.R
+  - tests/testthat/test-preprocess_2019.R
+  vignettes: vignettes/preprocessing-dharma-2019-cohort.Rmd
+  inflate:
+    flat_file: dev/flat_preprocess_2019.Rmd
+    vignette_name: Preprocessing Dharma 2019 Cohort
+    open_vignette: false
+    check: false
+    document: true
+    overwrite: ask
+    clean: ask
+    codecov: false
+flat_preprocess_2019_health.Rmd:
+  path: dev/flat_preprocess_2019_health.Rmd
+  state: active
+  R:
+  - R/preprocess_2019_health.R
+  - R/preprocess_rdp_health_subset2019.R
+  - R/preprocess_rdp_health_subset2020.R
+  tests:
+  - tests/testthat/test-preprocess_rdp_health_subset2019.R
+  - tests/testthat/test-preprocess_rdp_health_subset2020.R
+  - tests/testthat/test-preprocess_2019_health.R
+  vignettes: vignettes/preprocessing-2019-health-status.Rmd
+  inflate:
+    flat_file: dev/flat_preprocess_2019_health.Rmd
+    vignette_name: Preprocessing 2019 Health Status
     open_vignette: false
     check: false
     document: true
@@ -123,3 +148,9 @@ flat_tracking_inputs.Rmd:
     overwrite: ask
     clean: ask
     codecov: false
+keep:
+  path: keep
+  state: active
+  R: R/utils-pipe.R
+  tests: []
+  vignettes: vignettes/OutputTables.Rmd

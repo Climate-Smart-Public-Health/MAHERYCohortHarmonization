@@ -65,7 +65,7 @@ preprocess_opensrp2018 <- function(open_census){
     select(-dob_date_clean, -dob_month_clean) %>%
     rename_all(~ str_replace(., "_clean", "")) %>%
     rowwise() %>%
-    mutate(uuid = generate_uid(salt=Sys.getenv("UUID_SALT"), name, hh_head_name, as.character(dob))) %>%
+    mutate(uuid = generate_uid(salt=Sys.getenv("UUID_SALT"), name, hh_head_name, as.character(dob), sex)) %>%
     ungroup() %>%
     # this removes one row of duplicates from bilina victor
     distinct() %>%
