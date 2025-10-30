@@ -13,21 +13,14 @@ calculate_age_group <- function(dob, reference_date = Sys.Date()) {
   age <- floor(age)
 
   cut(
-    age,
-    breaks = c(-Inf, 0, 1, 4, 9, 14, 19, 24, 49, 64, Inf),
+    as.numeric(age),
+    breaks = c(0, 1, 4, 9, 14, 19, 24, 49, 64, Inf),
     labels = c(
-      "Under 1",
-      "1–4",
-      "5–9",
-      "10–14",
-      "15–19",
-      "20–24",
-      "25–49",
-      "50–64",
-      "65+",
-      "Unknown"  # this one is just a filler, but not needed unless age has NA
-    )[1:10],  # only include 10 labels
+      "Under 1", "1–4", "5–9", "10–14", "15–19",
+      "20–24", "25–49", "50–64", "65+"
+    ),
     right = TRUE,
     include.lowest = TRUE
-  )
+  ) %>%
+  fct_explicit_na(na_level = "Unknown")
 }

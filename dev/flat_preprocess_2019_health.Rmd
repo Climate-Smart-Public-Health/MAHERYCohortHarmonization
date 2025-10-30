@@ -1,0 +1,937 @@
+---
+title: "flat_preprocess_2019_health.Rmd empty"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r development, include=FALSE}
+library(testthat)
+```
+
+```{r setup}
+library(here)
+library(targets)
+tar_load(dharma2019, store = here::here("_targets"))
+
+# Load already included functions if relevant
+pkgload::load_all(export_all = FALSE)
+
+library(janitor)
+library(dplyr)
+library(tidyr)
+library(lubridate)
+library(skimr)
+library(forcats)
+library(stringr)
+library(ggplot2)
+```
+
+This notebooks deals with the 2019 file's health data.
+
+Let's begin:
+
+## Level 1 Health Data
+
+The data is organized into 2 levels, where level 1 is the individual
+baseline data, and level 2 is the follow up data.
+
+### Reading in the data
+
+The data is read in from the targets pipeline, and is contained in the `dharma2019` object.
+
+To get the same number of rows we rerun the same NA filtering as
+in the cohort 2019 notebook:
+
+```{r}
+cohort_df <- dharma2019$`Level 1 Named`
+
+# create household head name
+household_df <- dharma2019$`Level 0 Named` %>%
+  select(fact_0_id, L0_q2_hh_name) %>%
+  rename(hh_head_name = L0_q2_hh_name) %>%
+  distinct() %>%
+  mutate(hh_head_name = na_if(hh_head_name,".")) %>%
+  filter(!is.na(hh_head_name))
+
+# some na filtering
+cohort_df %>%
+  fill(fact_0_id, .direction = "down") %>%
+  filter(!is.na(L1_q39_date)) %>%
+  filter(L1_q39_date != ".") %>% 
+  filter(!is.na(L1_q1_name)) %>%
+  filter(L1_q1_name != ".") %>% 
+  filter(!is.na(L1_q1_name)) %>%
+  filter(L1_q1_name != ".") %>% 
+  filter(!is.na(L1_q8_gender)) %>%
+  filter(L1_q8_gender != ".") %>%
+  filter(!is.na(L1_q2_dob_year)) %>%
+  filter(L1_q2_dob_year != ".") %>%
+
+  #join household head name
+  left_join(household_df, by = "fact_0_id") -> cohort_2019_health
+```
+
+We can use the data dictionary to see what columns are available.
+
+```{r}
+dharma2019_dict <- dharma2019$`Data Dictionary`
+dharma2019_dict %>%
+  fill(level, .direction = "down") -> dharma2019_dict
+
+level_1_dict <- dharma2019_dict %>%
+  filter(level == 1)
+level_1_dict
+
+level_1_dict <- dharma2019_dict %>%
+  filter(level == 1)
+level_1_dict
+```
+
+Now, to get the matching health columns for 2019, we match the
+2018 health columns to the most relevant 2019 columns.
+
+### Health Care Access & Diagnoses
+
+This section will align with the `prior_health_care` and `prior_diagnoses` sections
+
+```{r}
+cohort_2019_health %>%
+  select(L1_q16_visit_hosp_clinic) %>%
+  table()
+```
+
+```{r}
+cohort_2019_health %>%
+  mutate(prior_health_care_clean = case_when(
+    L1_q16_visit_hosp_clinic == "Yes" ~ "Yes",
+    L1_q16_visit_hosp_clinic == "No" ~ "No",
+    L1_q16_visit_hosp_clinic == "IDK" ~ "Unknown",
+    TRUE ~ NA_character_
+  ) %>% as.factor()) -> cohort_2019_health_
+```
+
+We fortunately already have the diagnoses in wide format so we can work with that:
+
+```{r}
+diagnoses <- level_1_dict %>%
+  fill(column_name, .direction = "down") %>%
+  filter(str_detect(column_name, "q17_diagnostic")) %>%
+  select(choice_name) %>%
+  pull(choice_name) %>%
+  make_clean_names() %>%
+  str_replace_all("vih", "hiv") %>%
+  str_c("diag_", ., "_clean")
+
+```
+
+Now, we can rename the columns in the health table with these
+diagnoses:
+```{r}
+ind_diagnoses <- names(cohort_2019_health_) %>%
+  str_detect("L1_q17_diagnostic") %>%
+  which()
+
+names(cohort_2019_health_)[ind_diagnoses] <- diagnoses
+```
+
+```{r}
+# cohort_2019_health_ %>%
+#   mutate(across(contains("diag_"), ~ case_when(
+#     . == "." ~ NA,
+#     . == NA ~ NA
+#   ) %>% as.factor())) -> cohort_2019_health_
+  
+cohort_2019_health_%>%
+  select(contains("diag_")) %>%
+  glimpse()
+```
+
+Much easier! Now, we deal with the "other" diagnoses:
+
+```{r}
+cohort_2019_health_ %>%
+  tabyl(L1_q18_other_diagnostic)
+```
+
+This will require some manual cleaning as well as the same strategy for
+cleaning the "other" diagnoses as we did in the 2018 notebook, using a
+translation lookup table.
+
+We'll leave this for now.
+
+### Vaccinations
+
+Categorising vaccinations will be similar to 2018:
+
+```{r}
+cohort_2019_health_ %>%
+  select(L1_q26_vaccine_card) %>%
+  table()
+```
+
+## Level 2 Health Data
+
+In addition to this, there are level 2 health data that is collected
+for each individual multiple times per year. These are called `followups`.
+
+```{r}
+cohort_2019_anthro <- dharma2019$`Level 2 Named`
+level_2_dict <- dharma2019_dict %>%
+  filter(level == 2)
+```
+
+The level 2 data is collected at the following time points:
+
+```{r}
+cohort_2019_anthro %>%
+  select(L2_q38_date_followup) %>%
+  mutate(date = L2_q38_date_followup %>%
+    na_if("\\.") %>% 
+    as.numeric() %>%
+    convert_to_date()) %>%
+  select(date) %>%
+  ggplot(aes(x = date)) +
+  geom_histogram(binwidth = 30) +
+  labs(title = "Level 2 data collection dates in 2019", x = "Date", y = "Count")
+```
+
+As we can see, the data is supposed to correspond to a 2019 data collection
+window, but extends to almost the end of 2020.
+
+Naively, we can check to see if people get multiple surveys:
+
+```{r}
+cohort_2019_anthro %>%
+  fill(fact_1_id, .direction = "down") %>%
+  filter(!deleted) %>%
+  group_by(fact_1_id) %>%
+  summarise(n_surveys = n()) %>%
+  arrange(-n_surveys)
+```
+
+It seems that an individual could have 20 entries in one
+file:
+
+```{r}
+cohort_2019_anthro %>%
+  fill(fact_0_id, fact_1_id, .direction = "down") %>%
+  filter(!deleted) %>%
+  filter(fact_1_id == 8864710) %>%
+  mutate(date = L2_q38_date_followup %>%
+    na_if("\\.") %>% 
+    as.numeric() %>%
+    convert_to_date()) %>%
+  select(date) %>% table()
+```
+
+Ok, it is encouraging that the dates are all different. This would mean that,
+for some people, they have multiple follow ups in the same year.
+
+Let's see how many follows ups the average person has:
+
+```{r}
+cohort_2019_anthro %>%
+  fill(fact_0_id, fact_1_id, .direction = "down") %>%
+  filter(!deleted)
+```
+
+Ok, with that known, we can preprocess these anthro entries. We know
+that each individual can have multiple entries, so we need to remove the deleted entries
+and then order each individual by date to know which follow up is which:
+
+```{r}
+cohort_2019_anthro %>%
+  fill(fact_0_id, fact_1_id, .direction = "down") %>%
+  filter(!deleted) %>%
+  filter(L2_q38_date_followup != ".") %>%
+  mutate(date_clean = L2_q38_date_followup %>%
+    na_if("\\.") %>% 
+    as.numeric() %>%
+    convert_to_date()) -> cohort_2019_anthro_
+```
+
+### Demographics
+
+First, we look at the demographics within follow ups.
+
+The status of the individual is first:
+
+```{r}
+cohort_2019_anthro_ %>%
+  select(fact_1_id, L2_q41_alive) %>%
+  tabyl(L2_q41_alive)
+```
+
+```{r}
+cohort_2019_anthro_ %>%
+  tabyl(L2_q47_participate)
+```
+
+```{r}
+cohort_2019_anthro_ %>%
+  tabyl(L2_q46_present)
+```
+
+This filters out the individuals who are not alive, not participating, or not present.
+
+```{r}
+cohort_2019_anthro_ %>%
+  filter(L2_q47_participate == "Yes") %>%
+  filter(L2_q41_alive == "Yes") %>%
+  filter(L2_q46_present == "Yes") -> cohort_2019_anthro_
+```
+
+### Maternal Health
+
+Now we look at recent pregnancies:
+
+```{r}
+cohort_2019_anthro_ %>%
+  select(fact_1_id, L2_q196_live_birth) %>%
+  tabyl(L2_q196_live_birth)
+```
+
+60 individuals is enough to keep around:
+
+```{r}
+cohort_2019_anthro_ %>%
+  mutate(recent_birth_clean = case_when(
+    L2_q196_live_birth == "Yes" ~ TRUE,
+    L2_q196_live_birth == "No" ~ FALSE,
+    L2_q196_live_birth == "." ~ NA,
+    TRUE ~ NA
+  ) %>% as.factor()) -> cohort_2019_anthro_
+```
+
+If they are currently pregnant:
+
+```{r}
+cohort_2019_anthro_ %>%
+  select(fact_1_id, L2_q200_pregnant_now) %>%
+  tabyl(L2_q200_pregnant_now)
+```
+
+That's a large number of individuals who are pregnant, so we can keep this
+column as well:
+
+```{r}
+cohort_2019_anthro_ %>%
+  mutate(pregnant_now_clean = case_when(
+    L2_q200_pregnant_now == "Yes" ~ TRUE,
+    L2_q200_pregnant_now == "No" ~ FALSE,
+    L2_q200_pregnant_now == "." ~ NA,
+    TRUE ~ NA
+  ) %>% as.factor()) -> cohort_2019_anthro_
+```
+
+The other pregnancy columns do not seem to be relevant for analysis, but we
+may include them later.
+
+### Diagnoses
+
+Recent diagnoses are collected here as well. We're going to use the
+lookup table from the 2018 data to rename the columns:
+
+```{r}
+diagnoses <- level_2_dict %>%
+  fill(column_name, .direction = "down") %>%
+  filter(str_detect(column_name, "q62_diagnostic")) %>%
+  mutate(raw = make_clean_names(choice_name)) %>%
+  select(raw) %>%
+  left_join(malagasy_diagnosis_lookup_table) %>%
+  pull(diagnosis_english) %>%
+  str_c("diag_", ., "_clean")
+
+ind_diagnoses <- names(cohort_2019_anthro_) %>%
+  str_detect("q62_diagnostic") %>%
+  which()
+
+names(cohort_2019_anthro_)[ind_diagnoses] <- diagnoses
+```
+
+Here's a specific diagnosis we want to single out: Malaria (called RDT in Malagasy):
+
+```{r}
+cohort_2019_anthro_ %>%
+  select(L2_q226_rdt_test, L2_q227_rdt_result) %>%
+  table()
+```
+
+We can replace whenever we have malaria diagnosis with
+the results of the RDT test:
+
+```{r}
+cohort_2019_anthro_ %>%
+  mutate(diag_malaria_rdt_positive_clean = case_when(
+    diag_malaria_rdt_positive_clean == TRUE ~ TRUE,
+    L2_q227_rdt_result == "Positive" ~ TRUE,
+    L2_q227_rdt_result == "Negative" ~ FALSE,
+    TRUE ~ NA
+  ) %>% as.factor()) -> cohort_2019_anthro_
+```
+
+### Symptoms
+
+We can process the set of specific symptoms next:
+
+```{r}
+cohort_2019_anthro_ %>%
+
+  #diarrhea
+  mutate(symptom15dys_diarrhea_clean = case_when(
+    L2_q94_diarrhea_now_15days == "Yes" ~ TRUE,
+    L2_q94_diarrhea_now_15days == "No" ~ FALSE,
+    L2_q94_diarrhea_now_15days == "." ~ NA,
+    TRUE ~ NA
+  ) %>% as.factor()) %>%
+
+  #fever
+  mutate(symptom15dys_fever_clean = case_when(
+    L2_q117_fever_now_15days == "Yes" ~ TRUE,
+    L2_q117_fever_now_15days == "No" ~ FALSE,
+    L2_q117_fever_now_15days == "." ~ NA,
+    TRUE ~ NA
+  ) %>% as.factor()) %>%
+
+  # emesis
+  mutate(symptom15dys_vomit_clean = case_when(
+    L2_q137_vomit_now_15days == "Yes" ~ TRUE,
+    L2_q137_vomit_now_15days == "No" ~ FALSE,
+    L2_q137_vomit_now_15days == "." ~ NA,
+    TRUE ~ NA
+  ) %>% as.factor()) %>%
+
+  # headache
+  mutate(symptom15dys_headache_clean = case_when(
+    L2_q236_headache_15days == "Yes" ~ TRUE,
+    L2_q236_headache_15days == "No" ~ FALSE,
+    L2_q236_headache_15days == "." ~ NA,
+    TRUE ~ NA
+  ) %>% as.factor()) -> cohort_2019_anthro_
+```
+
+## Structure
+
+We will add a function to show us what the time frame
+of a specific person's follow up is:
+
+```{r}
+cohort_2019_anthro_ %>%
+  mutate(uuid_clean = fact_1_id) %>%
+  group_by(uuid_clean) %>%
+  arrange(uuid_clean, date_clean) %>%
+  mutate(followup_number_clean = row_number()) %>%
+  ungroup() %>%
+  mutate(across(contains("diag_"), ~ case_when(
+    . == "." ~ NA,
+    is.na(.) ~ NA,
+    TRUE ~ TRUE
+  ) %>% as.factor())) %>%
+  rename(village_clean = L2_q791_enumerator) %>%
+  select(contains('clean')) %>%
+  select(-contains("L2")) %>%
+  select(uuid_clean, followup_number_clean, date_clean, village_clean, everything()) -> x
+
+skimr::skim(x)
+
+```
+
+# preprocess_rdp_health_subset2019
+
+This function will preprocess a subset of the RDP health data for 2019.
+  
+```{r function-preprocess_rdp_health_subset}
+#' RDP Health Subset Preprocessing
+#' 
+#' This function preprocesses the 2019 data to extract a subset of health-related information.
+#' It focuses on cleaning and organizing health data for the RDP paper.
+#' 
+#' @return
+#' 
+#' @export
+preprocess_rdp_health_subset2019 <- function(dharma2019){
+    
+    cohort_2019_anthro <- dharma2019$`Level 2 Named`
+    dharma2019_dict <- dharma2019$`Data Dictionary`
+    dharma2019_dict %>%
+      fill(column_name, level, .direction = "down") %>%
+      fill(level, .direction = "down")  -> dharma2019_dict
+    level_2_dict <- dharma2019_dict %>%
+      filter(level == 2)
+
+    cohort_2019_anthro %>% 
+      fill(fact_0_id, fact_1_id, .direction = "down") %>%
+      filter(!deleted) %>%
+      filter(L2_q38_date_followup != ".") %>%
+      mutate(date_clean = L2_q38_date_followup %>%
+        na_if("\\.") %>% 
+        as.numeric() %>%
+        convert_to_date()) -> cohort_2019_anthro_
+
+    cohort_2019_anthro_ %>%
+      filter(L2_q47_participate == "Yes") %>%
+      filter(L2_q41_alive == "Yes") %>%
+      filter(L2_q46_present == "Yes") -> cohort_2019_anthro_
+    
+    cohort_2019_anthro_ %>%
+      mutate(recent_birth_clean = case_when(
+        L2_q196_live_birth == "Yes" ~ TRUE,
+        L2_q196_live_birth == "No" ~ FALSE,
+        L2_q196_live_birth == "." ~ NA,
+        TRUE ~ NA
+      ) %>% as.factor()) -> cohort_2019_anthro_
+
+    cohort_2019_anthro_ %>%
+      mutate(pregnant_now_clean = case_when(
+        L2_q200_pregnant_now == "Yes" ~ TRUE,
+        L2_q200_pregnant_now == "No" ~ FALSE,
+        L2_q200_pregnant_now == "." ~ NA,
+        TRUE ~ NA
+      ) %>% as.factor()) -> cohort_2019_anthro_
+
+    diagnoses <- level_2_dict %>%
+      
+      filter(str_detect(column_name, "q62_diagnostic")) %>%
+      mutate(raw = make_clean_names(choice_name)) %>%
+      select(raw) %>%
+      left_join(malagasy_diagnosis_lookup_table) %>%
+      pull(diagnosis_english) %>%
+      str_c("diag_", ., "_clean")
+
+    ind_diagnoses <- names(cohort_2019_anthro_) %>%
+      str_detect("q62_diagnostic") %>%
+      which()
+
+    names(cohort_2019_anthro_)[ind_diagnoses] <- diagnoses
+
+    cohort_2019_anthro_ %>%
+
+      # malaria
+      mutate(diag_malaria_rdt_positive_clean = case_when(
+        diag_malaria_rdt_positive_clean == TRUE ~ TRUE,
+        L2_q227_rdt_result == "Positive" ~ TRUE,
+        L2_q227_rdt_result == "Negative" ~ FALSE,
+        TRUE ~ NA
+      ) %>% as.factor()) %>%
+
+      #diarrhea
+      mutate(symptom15dys_diarrhea_clean = case_when(
+        L2_q94_diarrhea_now_15days == "Yes" ~ TRUE,
+        L2_q94_diarrhea_now_15days == "No" ~ FALSE,
+        L2_q94_diarrhea_now_15days == "." ~ NA,
+        TRUE ~ NA
+      ) %>% as.factor()) %>%
+
+      #fever
+      mutate(symptom15dys_fever_clean = case_when(
+        L2_q117_fever_now_15days == "Yes" ~ TRUE,
+        L2_q117_fever_now_15days == "No" ~ FALSE,
+        L2_q117_fever_now_15days == "." ~ NA,
+        TRUE ~ NA
+      ) %>% as.factor()) %>%
+
+      # emesis
+      mutate(symptom15dys_vomit_clean = case_when(
+        L2_q137_vomit_now_15days == "Yes" ~ TRUE,
+        L2_q137_vomit_now_15days == "No" ~ FALSE,
+        L2_q137_vomit_now_15days == "." ~ NA,
+        TRUE ~ NA
+      ) %>% as.factor()) %>%
+
+      # headache
+      mutate(symptom15dys_headache_clean = case_when(
+        L2_q236_headache_15days == "Yes" ~ TRUE,
+        L2_q236_headache_15days == "No" ~ FALSE,
+        L2_q236_headache_15days == "." ~ NA,
+        TRUE ~ NA
+      ) %>% as.factor()) -> cohort_2019_anthro_
+      
+    cohort_2019_anthro_ %>%
+      mutate(uuid_clean = as.character(fact_1_id)) %>%
+      group_by(uuid_clean) %>%
+      arrange(uuid_clean, date_clean) %>%
+      mutate(followup_number_clean = row_number()) %>%
+      ungroup() %>%
+      mutate(across(contains("diag_"), ~ case_when(
+        . == "." ~ NA,
+        is.na(.) ~ NA,
+        TRUE ~ TRUE
+      ) %>% as.factor())) %>%
+      rename(village_clean = L2_q791_enumerator) %>%
+      select(contains('clean')) %>%
+      select(-contains("L2")) %>%
+      select(uuid_clean, followup_number_clean, date_clean, village_clean, everything())
+}
+```
+
+  
+```{r tests-preprocess_rdp_health_subset}
+test_that("preprocess_rdp_health_subset works", {
+  expect_true(inherits(preprocess_rdp_health_subset2019, "function")) 
+})
+```
+
+# preprocess_rdp_health_subset2020
+
+Similar to above, we can define a function to preprocess the 2020 health followups.
+  
+It looks like the 2020 data has a similar structure to the 2019 data, so we can
+use a similar approach. Confusingly, it uses `L0` as the prefix, which has
+usually been reserved for household-level data. However, we can see in the `names`
+that `fact_1_id` is the individual identifier, and the date column is `L0_q38_date_followup`.
+
+So this must be a follow up file.
+
+```{r}
+tar_load(dharma2020, store = here::here("_targets"))
+```
+
+```{r}
+cohort_2020_anthro <- dharma2020
+names(cohort_2020_anthro) %>%
+  str_subset("date") %>%
+  sort()
+```
+
+So what we need to find are the same health columns from 2019, but in 2020. Do the
+same number of surveys per person exist?:
+
+```{r}
+cohort_2020_anthro %>%
+  filter(!deleted) %>%
+  filter(L0_q856_unique_id_if_unable_to_select_from_dropdown_above != ".") %>%
+  group_by(L0_q856_unique_id_if_unable_to_select_from_dropdown_above) %>%
+  summarise(n_surveys = n()) %>%
+  arrange(-n_surveys)
+```
+
+It looks like each person has only one followup survey, but there are some with 6.
+
+We need to be sure we are selecting the right identifier. Let's look at the columns with
+a valid name, and the column where they select a name from the drop down:
+
+Individuals with a name and ID number:
+
+```{r}
+cohort_2020_anthro %>%
+  select(name = L0_q813_who_are_you_following_up_with_individual_id, id = L0_q856_unique_id_if_unable_to_select_from_dropdown_above) %>%
+  # remove rows where there is neither a name or id
+  filter(name != "." & id != ".") %>%
+  group_by(name, id) %>%
+  summarise(n = n()) %>%
+  arrange(-n) %>% summary()
+```
+
+Over 800 cases, the vast majority of whom have only 1 count.
+
+Individuals with a name but no ID:
+
+```{r}
+cohort_2020_anthro %>%
+  select(name = L0_q813_who_are_you_following_up_with_individual_id, id = L0_q856_unique_id_if_unable_to_select_from_dropdown_above) %>%
+  # remove rows where there is a name but no id
+  filter(name != "." & id == ".") %>%
+  group_by(name, id) %>%
+  summarise(n = n()) %>%
+  arrange(-n) %>% summary()
+```
+
+Over 1830 cases, and the vast majority have over 14 entries. This is the
+group we should be using as the "correct" data.
+
+Individuals with no name but an ID:
+
+```{r}
+cohort_2020_anthro %>%
+  select(name = L0_q813_who_are_you_following_up_with_individual_id, id = L0_q856_unique_id_if_unable_to_select_from_dropdown_above,) %>%
+  # remove rows where there is no name but there is an id
+  filter(name == "." & id != ".") %>%
+  group_by(name, id) %>%
+  summarise(n = n()) %>%
+  arrange(-n) %>% summary()
+```
+
+1900 cases, with the median number of entries as 2.
+
+If someone has no name but does have an ID, can we find them in the set that has both a name and an ID?
+
+```{r}
+cohort_2020_anthro %>%
+  select(name = L0_q813_who_are_you_following_up_with_individual_id, id = L0_q856_unique_id_if_unable_to_select_from_dropdown_above) %>%
+  # remove rows where there is no name but there is an id
+  filter(name == "." & id != ".") %>%
+  left_join(
+    cohort_2020_anthro %>%
+      select(name = L0_q813_who_are_you_following_up_with_individual_id, id = L0_q856_unique_id_if_unable_to_select_from_dropdown_above,) %>%
+      # remove rows where there is neither a name or id
+      filter(name != "." & id != ".") %>%
+      distinct(),
+    by = "id"
+  ) %>%
+  filter(!is.na(name.y)) %>%
+  group_by(name.x, id, name.y) %>%
+  summarise(n = n()) %>%
+  arrange(-n)
+```
+
+These 8 IDs appear twice — first they have an ID but no name, and in another
+follow up they have both an ID and a name. This means that it is extremely
+rare that someone has a follow up where they did not select the right name.
+
+This means that people who have a name and an ID are the most reliable, and
+people with a name and no ID are the next most reliable. People with
+no name but an ID are the least reliable, and should likely be removed.
+How much data would we lose?
+
+```{r}
+cohort_2020_anthro %>%
+  select(name = L0_q813_who_are_you_following_up_with_individual_id, id = L0_q856_unique_id_if_unable_to_select_from_dropdown_above,) %>%
+  # remove rows where there is no name but there is an id
+  filter(name == "." & id != ".") -> no_name
+
+nrow(no_name) / nrow(cohort_2020_anthro)
+```
+
+About 10%, this is acceptable.
+
+Below we confirm that this dataset continues the follow ups from 2021 (the end of our 2019 dataset) onwards:
+
+```{r}
+cohort_2020_anthro %>%
+  select(L0_q38_date_followup) %>%
+  mutate(date = L0_q38_date_followup %>%
+    na_if("\\.") %>% 
+    # as.numeric() %>%
+    dmy_hms()) %>%
+  select(date) %>%
+  ggplot(aes(x = date)) +
+  geom_histogram() +
+  labs(title = "Level 0 data collection dates in 2020", x = "Date", y = "Count")
+```
+
+Ok, so now we know the basic first filters: we remove deleted entries, as well
+as entries with no name. Then we'll additionally create a unique ID
+for each individual by combining the name and ID columns.
+
+```{r}
+cohort_2020_anthro %>%
+  filter(!deleted) %>%
+  filter(L0_q813_who_are_you_following_up_with_individual_id != ".") %>%
+  filter(L0_q38_date_followup != ".") %>%
+  mutate(uuid_clean = str_c(
+    L0_q813_who_are_you_following_up_with_individual_id, 
+    L0_q856_unique_id_if_unable_to_select_from_dropdown_above, 
+    sep = "_")) %>%
+  filter(uuid_clean != "._") %>%
+  rowwise() %>%
+  mutate(uuid_clean = generate_uid(salt=Sys.getenv("UUID_SALT"), uuid_clean)) %>%
+  ungroup() -> cohort_2020_anthro_
+```
+
+With that done, we can now select the same health columns as in 2019.
+
+```{r}
+names(cohort_2019_anthro_) %>% str_remove("L2_") -> names_2019
+names(cohort_2020_anthro_) %>% str_remove("L0_") -> names_2020
+
+names_2020[names_2020 %in% names_2019]
+```
+
+```{r development-preprocess_rdp_health_subset2020}
+# You can prepare the code of the preprocess_rdp_health_subset2020() function here
+```
+
+
+```{r function-preprocess_rdp_health_subset2020}
+#' Title
+#' 
+#' Description
+#' 
+#' @return
+#' 
+#' @export
+preprocess_rdp_health_subset2020 <- function(dharma2020, dharma2019_dict){
+    
+    cohort_2020_anthro <- dharma2020
+    
+    dharma2019_dict %>%
+      fill(column_name, level, .direction = "down") %>%
+      fill(level, .direction = "down")  -> dharma2019_dict
+    level_2_dict <- dharma2019_dict %>%
+      filter(level == 2)
+
+    cohort_2020_anthro %>% 
+      # fill(fact_0_id, fact_1_id, .direction = "down") %>%
+      filter(!deleted) %>%
+      filter(L0_q38_date_followup != ".") %>%
+      mutate(date_clean = L0_q38_date_followup %>%
+        na_if("\\.") %>% 
+        dmy_hms()) -> cohort_2020_anthro_
+
+    cohort_2020_anthro_ %>%
+      filter(L0_q47_participate == "Yes") %>%
+      filter(L0_q41_alive == "Yes") %>%
+      filter(L0_q46_present == "Yes") -> cohort_2020_anthro_
+    
+    cohort_2020_anthro_ %>%
+      mutate(recent_birth_clean = case_when(
+        L0_q196_live_birth == "Yes" ~ TRUE,
+        L0_q196_live_birth == "No" ~ FALSE,
+        L0_q196_live_birth == "." ~ NA,
+        TRUE ~ NA
+      ) %>% as.factor()) -> cohort_2020_anthro_
+
+    cohort_2020_anthro_ %>%
+      mutate(pregnant_now_clean = case_when(
+        L0_q200_pregnant_now == "Yes" ~ TRUE,
+        L0_q200_pregnant_now == "No" ~ FALSE,
+        L0_q200_pregnant_now == "." ~ NA,
+        TRUE ~ NA
+      ) %>% as.factor()) -> cohort_2020_anthro_
+
+    diagnoses <- level_2_dict %>%
+      
+      filter(str_detect(column_name, "q62_diagnostic")) %>%
+      mutate(raw = make_clean_names(choice_name)) %>%
+      select(raw) %>%
+      left_join(malagasy_diagnosis_lookup_table) %>%
+      pull(diagnosis_english) %>%
+      str_c("diag_", ., "_clean")
+
+    ind_diagnoses <- names(cohort_2020_anthro_) %>%
+      str_detect("q62_diagnostic") %>%
+      which()
+
+    if(length(ind_diagnoses) != length(diagnoses)){
+      stop("number of diagnoses does not match number of diagnosis columns in 2020 data")
+    }
+
+    names(cohort_2020_anthro_)[ind_diagnoses] <- diagnoses
+
+    cohort_2020_anthro_ %>%
+
+      # malaria
+      mutate(diag_malaria_rdt_positive_clean = case_when(
+        diag_malaria_rdt_positive_clean == TRUE ~ TRUE,
+        L0_q227_rdt_result == "Positive" ~ TRUE,
+        L0_q227_rdt_result == "Negative" ~ FALSE,
+        TRUE ~ NA
+      ) %>% as.factor()) %>%
+
+      #diarrhea
+      mutate(symptom15dys_diarrhea_clean = case_when(
+        L0_q94_diarrhea_now_15days == "Yes" ~ TRUE,
+        L0_q94_diarrhea_now_15days == "No" ~ FALSE,
+        L0_q94_diarrhea_now_15days == "." ~ NA,
+        TRUE ~ NA
+      ) %>% as.factor()) %>%
+
+      #fever
+      mutate(symptom15dys_fever_clean = case_when(
+        L0_q117_fever_now_15days == "Yes" ~ TRUE,
+        L0_q117_fever_now_15days == "No" ~ FALSE,
+        L0_q117_fever_now_15days == "." ~ NA,
+        TRUE ~ NA
+      ) %>% as.factor()) %>%
+
+      # emesis
+      mutate(symptom15dys_vomit_clean = case_when(
+        L0_q137_vomit_now_15days == "Yes" ~ TRUE,
+        L0_q137_vomit_now_15days == "No" ~ FALSE,
+        L0_q137_vomit_now_15days == "." ~ NA,
+        TRUE ~ NA
+      ) %>% as.factor()) %>%
+
+      # headache
+      mutate(symptom15dys_headache_clean = case_when(
+        L0_q236_headache_15days == "Yes" ~ TRUE,
+        L0_q236_headache_15days == "No" ~ FALSE,
+        L0_q236_headache_15days == "." ~ NA,
+        TRUE ~ NA
+      ) %>% as.factor()) -> cohort_2020_anthro_
+      
+    cohort_2020_anthro_ %>%
+      filter(!deleted) %>%
+      filter(L0_q813_who_are_you_following_up_with_individual_id != ".") %>%
+      filter(L0_q38_date_followup != ".") %>%
+      mutate(uuid_clean = str_c(
+        L0_q813_who_are_you_following_up_with_individual_id, 
+        L0_q856_unique_id_if_unable_to_select_from_dropdown_above, 
+        sep = "_")) %>%
+      filter(uuid_clean != "._") %>%
+      rowwise() %>%
+      mutate(uuid_clean = generate_uid(salt=Sys.getenv("UUID_SALT"), uuid_clean)) %>%
+      ungroup() %>%
+      group_by(uuid_clean) %>%
+      arrange(uuid_clean, date_clean) %>%
+      mutate(followup_number_clean = row_number()) %>%
+      ungroup() %>%
+      mutate(across(contains("diag_"), ~ case_when(
+        . == "." ~ NA,
+        is.na(.) ~ NA,
+        TRUE ~ TRUE
+      ) %>% as.factor())) %>%
+      rename(village_clean = L0_q791_enumerator) %>%
+      select(contains('clean')) %>%
+      select(-contains("L0")) %>%
+      select(uuid_clean, followup_number_clean, date_clean, village_clean, everything())
+}
+```
+  
+```{r example-preprocess_rdp_health_subset2020}
+preprocess_rdp_health_subset2020(dharma2020, dharma2019$`Data Dictionary`) %>%
+  skim()
+```
+  
+```{r tests-preprocess_rdp_health_subset2020}
+test_that("preprocess_rdp_health_subset2020 works", {
+  expect_true(inherits(preprocess_rdp_health_subset2020, "function")) 
+})
+```
+  
+
+# preprocess_2019_health
+
+* This function should output month-individuals as rows, where each unit of
+measure constitutes one person's month's data.
+
+* For rolling up the clinic to cohort data, we can roll up the
+symptoms to ICD10 codes, but preserve the original translations in table.
+
+* see: https://docs.google.com/presentation/d/10ftfDtWDckiPdgOmpoFd9Y2X1cfeLvuT9zPdMZKbmNI/
+
+
+```{r development-preprocess_2019_health}
+# Prepare the code of your function here
+```
+
+```{r function-preprocess_2019_health}
+#' preprocess_2019_health Title
+#'
+#' @return 1
+#' @export
+#'
+#' @examples
+preprocess_2019_health <- function() {
+  1
+}
+```
+
+```{r examples-preprocess_2019_health}
+preprocess_2019_health()
+```
+
+```{r tests-preprocess_2019_health}
+test_that("preprocess_2019_health works", {
+  expect_true(inherits(preprocess_2019_health, "function"))
+})
+```
+
+
+```{r development-inflate, eval=FALSE}
+# Run but keep eval=FALSE to avoid infinite loop
+# Execute in the console directly
+fusen::inflate(flat_file = "dev/flat_preprocess_2019_health.Rmd", vignette_name = "Preprocessing 2019 Health Status", check = FALSE, open_vignette = FALSE)
+```
+

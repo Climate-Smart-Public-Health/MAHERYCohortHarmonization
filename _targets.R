@@ -230,5 +230,30 @@ list(
       open_census <- opensrp$`Open census`
       preprocess_2018_health(open_census, cohort_2018_deid)
     }
+  ),
+
+  # now we can preprocess the Dharma 2019 cohort
+  tar_target(
+    name = cohort_2019,
+    command = {
+      preprocess_2019(dharma2019)
+    }
+  ),
+
+  # preprocess the health data for the 2019 cohort for the RDP paper
+  tar_target(
+    name = cohort_2019_health_RDP,
+    command = {
+      preprocess_rdp_health_subset2019(dharma2019)
+    },
+    description = "Preprocess the health subset of the 2019 cohort for the RDP paper. #googledrive"
+  ),
+
+  tar_target(
+    name = cohort_2020_health_RDP,
+    command = {
+      preprocess_rdp_health_subset2020(dharma2020, dharma2019$`Data Dictionary`)
+    },
+    description = "Preprocess the health subset of the 2020 cohort for the RDP paper. #googledrive"
   )
 )

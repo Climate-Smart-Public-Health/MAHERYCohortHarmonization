@@ -221,7 +221,27 @@ malagasy_diagnosis_lookup_table <- tibble::tribble(
   "infected_wound", "skin_soft_tissue_infection", "L00–L08", "Infections of the skin and subcutaneous tissue",
   "no_pregnancy", "pregnancy_related", "O00–O99", "Pregnancy, childbirth and the puerperium",
   "cancer", "neoplasm_unspecified", "C00–D48", "Neoplasms",
-  "other", "other_unknown", "R00–R99", "Symptoms, signs and abnormal clinical and laboratory findings, not elsewhere classified"
+  "other", "other_unknown", "R00–R99", "Symptoms, signs and abnormal clinical and laboratory findings, not elsewhere classified",
+  "tazo_moko_tdr", "malaria_rdt_positive", "B50–B64", "Protozoal diseases",
+  "pnemonia", "pneumonia", "J12–J18", "Pneumonia",
+  "raboka_na_toberikilaozy", "cough_or_tuberculosis", "A15–A19", "Tuberculosis",
+  "vih", "hiv", "B20–B24", "Human immunodeficiency virus [HIV] disease",
+  "kisoso_na_kitrotro", "measles_or_whooping_cough", "B05–B06", "Measles and Rubella",
+  "fery_misy_mamory_nana_ka_tsy_maintsy_ilaina_antibiotic_na_ilaina_fanapahana_rantsana", "abscess_needs_antibiotic_or_amputation", "L00–L08", "Infections of the skin and subcutaneous tissue",
+  "fahatsetsemanny_lalan_dra_anaty_loha", "stroke", "I60–I69", "Cerebrovascular diseases",
+  "fanintona", "seizure", "G40–G41", "Epilepsy and status epilepticus",
+  "olana_eo_aminny_fitomboana", "growth_problem", "E00–E35", "Disorders of endocrine glands (includes growth disorders)",
+  "fahajambana", "blindness", "H54", "Blindness and low vision",
+  "olana_aminny_fandrenesana_avy_aminny_tadiny", "hearing_problem_eardrum", "H60–H95", "Diseases of the ear and mastoid process",
+  "tosi_dra_ambony", "hypertension", "I10–I15", "Hypertensive diseases",
+  "omamiadana_na_kansera", "cancer", "C00–D48", "Neoplasms",
+  "olana_eo_aminny_ftondrana_vohoka_na_rehefa_be_kibo", "pregnancy_complication", "O00–O99", "Pregnancy, childbirth and the puerperium",
+  "bilarziozy", "bilharzia", "B65", "Schistosomiasis (Bilharziasis)",
+  "kakana_anaty_tsinay", "intestinal_worms", "B65–B83", "Helminthiases",
+  "aretinny_mahaviavy_azo_avy_aminny_otrikaretina", "sexually_transmitted_infection", "A50–A64", "Infections with a predominantly sexual mode of transmission",
+  "tsy_misy_aretina", "no_illness", "Z00–Z99", "Factors influencing health status and contact with health services",
+  "hafa", "other", "R00–R99", "Symptoms, signs and abnormal clinical and laboratory findings, not elsewhere classified",
+  "tsy_tadidy", "not_remembered", "R69", "Illness, unspecified"
 )
 # Save to package
 usethis::use_data(malagasy_diagnosis_lookup_table, overwrite = TRUE)
@@ -336,18 +356,24 @@ health_data %>%
 
 These will likely need a deliberate translation.
 
-Lastly, deformities will also get a translation:
+Lastly, deformities will simply get a translation:
 ```{r}
-health_data %>%
+health_data_ %>%
   select(contains("deformit")) %>%
   table()
 ```
 
 
+We'll just concatenate the deformities and other deformities columns into a single column
+and then translate them into English.
+  
+  
+  
+
+
 # preprocess_2018_health
 
 The final function will combine all of these steps into a single function that can be used to preprocess the 2018 health data in the pipeline.
-
 
 ```{r examples-preprocess_2018_health}
 preprocess_2018_health(open_census, cohort_2018_deid) -> health_data_
